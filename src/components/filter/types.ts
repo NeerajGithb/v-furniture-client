@@ -13,7 +13,6 @@ export interface Filters {
 }
 
 export interface FilterSidebarProps {
-  filters: Filters;
   isMobile?: boolean;
   onClose?: () => void;
   isScrolled?: boolean;

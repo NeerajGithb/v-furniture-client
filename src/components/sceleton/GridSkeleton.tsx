@@ -1,20 +1,20 @@
-import React, { memo } from 'react';
+import React, { memo } from "react";
 
 const SkeletonCard = memo(() => (
   <div
     className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full mx-auto p-1.5"
     style={{
-      aspectRatio: '3/4',
-      minWidth: '200px',
-      maxWidth: '370px',
-      width: '100%',
-      height: 'auto',
+      aspectRatio: "3/4",
+      minWidth: "200px",
+      maxWidth: "370px",
+      width: "100%",
+      height: "auto",
     }}
   >
     {/* Image shimmer */}
     <div
       className="bg-linear-to-r from-gray-200 dark:from-gray-700 via-gray-100 dark:via-gray-600 to-gray-200 dark:to-gray-700 relative overflow-hidden"
-      style={{ height: '65%' }}
+      style={{ height: "65%" }}
     >
       <div className="absolute inset-0 bg-linear-to-r from-transparent via-white dark:via-gray-500 to-transparent animate-shimmer transform -skew-x-12"></div>
     </div>
@@ -31,7 +31,7 @@ const SkeletonCard = memo(() => (
   </div>
 ));
 
-SkeletonCard.displayName = 'SkeletonCard';
+SkeletonCard.displayName = "SkeletonCard";
 
 const GridSkeleton = () => (
   <div className="w-full max-md:p-0.75 px-2 md:px-3 max-md:bg-gray-200 dark:max-md:bg-gray-900">

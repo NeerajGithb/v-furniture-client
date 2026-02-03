@@ -1,21 +1,14 @@
-'use client';
+"use client";
 
-import { useRelatedProducts } from '@/hooks/useHomeData';
-import ProductShowcase from '../homepage/ProductShowcase';
+import ProductShowcase from "../homepage/ProductShowcase";
+import { CollectionRelatedProductsProps } from "@/types/collections";
 
-interface RelatedProductsProps {
-  inspirationSlug: string;
-  limit?: number;
-}
-
-const RelatedProducts = ({ inspirationSlug, limit = 20 }: RelatedProductsProps) => {
-  const {
-    data: relatedProducts = [],
-    isLoading: relatedProductsLoading,
-    isError: relatedProductsError,
-  } = useRelatedProducts(inspirationSlug, limit);
-
-  if (relatedProductsLoading) {
+const RelatedProducts = ({
+  products,
+  loading,
+  error,
+}: CollectionRelatedProductsProps) => {
+  if (loading) {
     return (
       <section className="py-16 bg-gray-50 dark:bg-[#0f1419]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +40,7 @@ const RelatedProducts = ({ inspirationSlug, limit = 20 }: RelatedProductsProps) 
     );
   }
 
-  if (relatedProductsError) {
+  if (error) {
     return (
       <section className="py-16 bg-gray-50 dark:bg-[#0f1419]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,7 +57,7 @@ const RelatedProducts = ({ inspirationSlug, limit = 20 }: RelatedProductsProps) 
     );
   }
 
-  if (!relatedProducts.length) {
+  if (!products?.length) {
     return null;
   }
 
@@ -72,7 +65,9 @@ const RelatedProducts = ({ inspirationSlug, limit = 20 }: RelatedProductsProps) 
     <ProductShowcase
       title="Related Products"
       description="Discover products that complement this inspiration."
-      productsData={relatedProducts}
+      products={products}
+      loading={loading}
+      error={error}
     />
   );
 };

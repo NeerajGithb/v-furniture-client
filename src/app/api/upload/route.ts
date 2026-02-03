@@ -1,82 +1,76 @@
-// src/app/api/upload/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import cloudinary from '@/lib/cloudinary';
+export const runtime = "nodejs";
 
-export const runtime = 'nodejs'; // ensure Node runtime
+import { NextRequest } from "next/server";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { uploadService } from "@/lib/domain/upload/UploadService";
+import {
+  FileUploadSchema,
+  Base64UploadSchema,
+} from "@/lib/domain/upload/UploadSchemas";
+import {
+  UnsupportedContentTypeError,
+  NoFileProvidedError,
+  InvalidJsonBodyError,
+  MissingUploadDataError,
+} from "@/lib/domain/upload/UploadErrors";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
 
-export async function POST(request: NextRequest) {
-  console.log('Received upload request');
-  try {
-    const contentType = request.headers.get('content-type');
+export const POST = withDB(
+  withRouteErrorHandling(async (request: NextRequest) => {
+    const contentType = request.headers.get("content-type");
+    const uploadType = uploadService.getUploadType(contentType);
 
-    // Handle FormData uploads (files from browser)
-    if (contentType?.includes('multipart/form-data')) {
-      const formData = await request.formData();
-      const file = formData.get('file');
-      console.log('FormData file received:', file);
-      if (!file) {
-        console.warn('No file provided in FormData');
-        return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-      }
-
-      // Convert Blob/File to Node Buffer
-      const arrayBuffer = await (file as Blob).arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      // Optional folder from FormData
-      const folder = (formData.get('folder') as string) || 'furniture-store';
-
-      // Upload to Cloudinary
-      const result = await new Promise<{ secure_url: string; public_id: string }>(
-        (resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream({ folder }, (error, result) => {
-              if (error) {
-                console.error('Cloudinary upload_stream error:', error);
-                reject(error);
-              } else if (!result) {
-                console.error('Cloudinary upload_stream returned no result');
-                reject(new Error('No result from Cloudinary'));
-              } else {
-                resolve(result as { secure_url: string; public_id: string });
-              }
-            })
-            .end(buffer);
-        },
-      );
-
-      return NextResponse.json({
-        url: result.secure_url,
-        publicId: result.public_id,
-      });
+    if (uploadType === "unsupported") {
+      throw new UnsupportedContentTypeError(contentType || "unknown");
     }
 
-    // Optional: handle base64 JSON uploads
-    if (contentType?.includes('application/json')) {
-      const body = await request.json().catch((err) => {
-        console.error('JSON parse error:', err);
-        throw new Error('Invalid JSON body');
+    if (uploadType === "file") {
+      // Handle FormData uploads (files from browser)
+      const formData = await request.formData();
+      const file = formData.get("file");
+
+      if (!file) {
+        throw new NoFileProvidedError();
+      }
+
+      // Validate at route boundary
+      const validatedData = FileUploadSchema.parse({
+        file,
+        folder: (formData.get("folder") as string) || "furniture-store",
       });
+
+      const result = await uploadService.uploadFile(validatedData);
+      return ApiResponseBuilder.success(result, 201);
+    }
+
+    if (uploadType === "base64") {
+      // Handle base64 JSON uploads
+      let body;
+      try {
+        body = await request.json();
+      } catch (error) {
+        throw new InvalidJsonBodyError();
+      }
 
       const { image, folder } = body || {};
-      if (!image || !folder) {
-        return NextResponse.json({ error: 'Missing image or folder in JSON' }, { status: 400 });
+
+      if (!image) {
+        throw new MissingUploadDataError("image");
       }
 
-      const result = await cloudinary.uploader.upload(image, { folder });
+      if (!folder) {
+        throw new MissingUploadDataError("folder");
+      }
 
-      return NextResponse.json({ url: result.secure_url, publicId: result.public_id });
+      // Validate at route boundary
+      const validatedData = Base64UploadSchema.parse({ image, folder });
+
+      const result = await uploadService.uploadBase64(validatedData);
+      return ApiResponseBuilder.success(result, 201);
     }
 
-    console.warn('Unsupported Content-Type:', contentType);
-    return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 400 });
-  } catch (error) {
-    console.error('Unhandled error in /api/upload:', error);
-    const errorMessage =
-      typeof error === 'object' && error !== null && 'message' in error
-        ? (error as { message: string }).message
-        : String(error);
-
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
-  }
-}
+    // This should never be reached due to uploadType check above
+    throw new UnsupportedContentTypeError(contentType || "unknown");
+  }),
+);

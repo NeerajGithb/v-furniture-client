@@ -1,82 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/dbConnect";
-import SubCategory from "@/models/subcategory";
-import { getCached, setCache, CACHE_TTL } from "@/lib/cache";
+import { NextRequest } from "next/server";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { categoriesService } from "@/lib/domain/categories/CategoriesService";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
 
-interface SubCategoryResponse {
-  success: boolean;
-  data?: any[];
-  error?: string;
-  retry?: boolean;
-}
+export const GET = withDB(
+  withRouteErrorHandling(async (request: NextRequest) => {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "100"); // Default limit for subcategories
 
-async function fetchSubCategoriesWithRetry(
-  retryCount = 3,
-): Promise<SubCategoryResponse> {
-  for (let attempt = 1; attempt <= retryCount; attempt++) {
-    try {
-      await connectDB();
-      const subcategories = await SubCategory.find()
-        .populate("categoryId", "name slug")
-        .sort({ name: 1 })
-        .lean();
-
-      return {
-        success: true,
-        data: subcategories,
-      };
-    } catch (error) {
-      console.error(`SubCategories fetch attempt ${attempt} failed:`, error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-
-      const isRetryableError =
-        errorMessage.includes("connection") ||
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("ECONNREFUSED") ||
-        errorMessage.includes("MongoNetworkError");
-
-      if (attempt === retryCount || !isRetryableError) {
-        return {
-          success: false,
-          error: errorMessage,
-          retry: isRetryableError && attempt < retryCount,
-        };
-      }
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.pow(2, attempt - 1) * 1000),
-      );
-    }
-  }
-
-  return {
-    success: false,
-    error: "Maximum retry attempts reached",
-  };
-}
-
-export async function GET() {
-  try {
-    const cacheKey = "subcategories:all";
-
-    const cached = await getCached<any[]>(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached);
+    // For backward compatibility, if no pagination params provided, return all
+    if (!searchParams.has("page") && !searchParams.has("limit")) {
+      const subcategories = await categoriesService.getAllSubcategories();
+      return ApiResponseBuilder.success(subcategories);
     }
 
-    const result = await fetchSubCategoriesWithRetry(3);
-
-    if (result.success) {
-      const subcategories = result.data || [];
-      await setCache(cacheKey, subcategories, CACHE_TTL.SUBCATEGORIES);
-      return NextResponse.json(subcategories);
-    } else {
-      return NextResponse.json([]);
-    }
-  } catch (error) {
-    console.error("Unexpected error in subcategories API:", error);
-    return NextResponse.json([]);
-  }
-}
+    // Return paginated subcategories
+    const result = await categoriesService.getPaginatedSubcategories(
+      page,
+      limit,
+    );
+    return ApiResponseBuilder.paginated(
+      result.subcategories,
+      result.pagination,
+    );
+  }),
+);

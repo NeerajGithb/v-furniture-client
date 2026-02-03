@@ -31,13 +31,14 @@ export const useAuthFlow = () => {
     passError: null,
   });
 
-  const [verificationState, setVerificationState] = useState<EmailVerificationState>({
-    showVerification: false,
-    email: "",
-    name: "",
-    code: "",
-    codeError: "",
-  });
+  const [verificationState, setVerificationState] =
+    useState<EmailVerificationState>({
+      showVerification: false,
+      email: "",
+      name: "",
+      code: "",
+      codeError: "",
+    });
 
   const toggleMode = () => {
     setAuthState((prev) => ({

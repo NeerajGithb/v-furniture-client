@@ -1,92 +1,63 @@
-export const runtime = 'nodejs';
+import { NextRequest, NextResponse } from "next/server";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { oauthService } from "@/lib/domain/oauth/OAuthService";
+import { setAuthCookies } from "@/lib/security/auth";
 
-import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/dbConnect';
-import User from '@/models/User';
-import {
-  createAccessToken,
-  createRefreshToken,
-  setAuthCookies,
-} from '@/lib/security/auth';
-import { getGoogleTokens, getGoogleUser } from '@/lib/google-auth';
-import crypto from 'crypto';
+export const GET = withDB(async (request: NextRequest) => {
+  const { searchParams, origin } = new URL(request.url);
 
-export async function GET(req : Request) {
   try {
-    /* 1️⃣ Read code from Google redirect */
-    const { searchParams } = new URL(req.url);
-    const code = searchParams.get('code');
+    // Extract callback parameters from Google
+    const code = searchParams.get("code");
+    const error = searchParams.get("error");
+    const errorDescription = searchParams.get("error_description");
 
+    // Handle OAuth errors from Google
+    if (error) {
+      const loginUrl = new URL("/auth/login", origin);
+      loginUrl.searchParams.set(
+        "error",
+        `OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ""}`,
+      );
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Code is required for callback
     if (!code) {
-      return NextResponse.redirect(
-        new URL('/login?error=missing_code', req.url)
+      const loginUrl = new URL("/auth/login", origin);
+      loginUrl.searchParams.set("error", "Authorization code missing");
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Process callback with authorization code
+    const result = await oauthService.handleOAuth({
+      provider: "google",
+      action: "callback",
+      code,
+      error: error || undefined,
+      error_description: errorDescription || undefined,
+    });
+
+    if (result.type === "auth") {
+      // Success - set auth cookies and redirect home
+      const response = NextResponse.redirect(new URL("/", origin));
+      setAuthCookies(
+        response,
+        result.tokens.accessToken,
+        result.tokens.refreshToken,
       );
+      return response;
     }
 
-    /* 2️⃣ Exchange code → Google tokens */
-    const tokens = await getGoogleTokens(code);
-
-    if (!tokens?.access_token) {
-      return NextResponse.redirect(
-        new URL('/login?error=token_exchange_failed', req.url)
-      );
-    }
-
-    /* 3️⃣ Fetch Google user info */
-    const googleUser = await getGoogleUser(tokens.access_token);
-    const { email, name, picture } = googleUser || {};
-
-    if (!email) {
-      return NextResponse.redirect(
-        new URL('/login?error=google_user_failed', req.url)
-      );
-    }
-
-    /* 4️⃣ Connect DB */
-    await connectDB();
-
-    /* 5️⃣ Find or create user */
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      user = await User.create({
-        name: name || '',
-        email,
-        photoURL: picture || '',
-        password: crypto.randomBytes(16).toString('hex'),
-        hasOAuth: true,
-      });
-    } else {
-      let shouldUpdate = false;
-
-      if (!user.hasOAuth) {
-        user.hasOAuth = true;
-        shouldUpdate = true;
-      }
-
-      if (picture && user.photoURL !== picture) {
-        user.photoURL = picture;
-        shouldUpdate = true;
-      }
-
-      if (shouldUpdate) {
-        await user.save();
-      }
-    }
-
-    /* 6️⃣ Create JWT tokens */
-    const accessToken = createAccessToken(user);
-    const refreshToken = createRefreshToken(user);
-
-    /* 7️⃣ Set cookies + redirect HOME */
-    const res = NextResponse.redirect(new URL('/', req.url));
-    setAuthCookies(res, accessToken, refreshToken);
-
-    return res;
-  } catch (err) {
-    console.error('Google OAuth callback error:', err);
-    return NextResponse.redirect(
-      new URL('/login?error=oauth_failed', req.url)
-    );
+    // Fallback error
+    const loginUrl = new URL("/auth/login", origin);
+    loginUrl.searchParams.set("error", "oauth_callback_failed");
+    return NextResponse.redirect(loginUrl);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "oauth_callback_failed";
+    const loginUrl = new URL("/auth/login", origin);
+    loginUrl.searchParams.set("error", errorMessage);
+    return NextResponse.redirect(loginUrl);
   }
-}
+});

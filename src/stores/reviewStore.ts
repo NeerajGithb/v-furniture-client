@@ -1,11 +1,5 @@
 import { create } from "zustand";
-
-export interface ReviewFormData {
-  rating: number;
-  title: string;
-  comment: string;
-  images: { url: string; publicId: string }[];
-}
+import { ReviewFormData } from "@/types/review";
 
 interface ReviewStore {
   showReviewForm: boolean;

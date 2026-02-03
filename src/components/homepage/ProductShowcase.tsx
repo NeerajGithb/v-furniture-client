@@ -1,27 +1,21 @@
-'use client';
+"use client";
 
-import { NavLink } from '@/components/NavigationLoader';
-import { useState, useEffect } from 'react';
-import ProductCard from '../product/ProductCard';
-import { Product } from '@/types/Product';
-import PrevLeft from '../ui/PrevLeft';
-import PrevRight from '../ui/PrevRight';
-import { useShowcaseProducts } from '@/hooks/useProductData';
-
-interface ProductShowcaseProps {
-  productsData?: Product[];
-  title?: string;
-  description?: string;
-  singleRow?: boolean;
-  className?: string;
-}
+import { NavLink } from "@/components/NavigationLoader";
+import { useState, useEffect } from "react";
+import ProductCard from "../product/ProductCard";
+import { Product } from "@/types/Product";
+import { ProductShowcaseProps } from "@/types/homepage";
+import PrevLeft from "../ui/PrevLeft";
+import PrevRight from "../ui/PrevRight";
 
 const ProductShowcase = ({
-  productsData,
-  title = 'Our Top Picks',
-  description = ' Showcasing our finest designs, crafted to perfection',
+  products,
+  loading,
+  error,
+  title = "Our Top Picks",
+  description = " Showcasing our finest designs, crafted to perfection",
   singleRow = false, // Default to two rows like homepage
-  className = '', // Default to empty string
+  className = "", // Default to empty string
 }: ProductShowcaseProps) => {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -30,13 +24,8 @@ const ProductShowcase = ({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const { data: showcaseProducts = [], isLoading: loadingShowcase, error } = useShowcaseProducts();
-
-  const products = productsData || showcaseProducts;
-  const loading = !productsData ? loadingShowcase : false;
-
   const getItemsPerView = () => {
-    if (typeof window === 'undefined') return 5;
+    if (typeof window === "undefined") return 5;
     if (window.innerWidth < 640) return 2;
     if (window.innerWidth < 768) return 2;
     if (window.innerWidth < 1024) return 3;
@@ -66,15 +55,17 @@ const ProductShowcase = ({
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
     if (!isMobile || isUserInteracting || products.length === 0) return;
 
     const interval = setInterval(() => {
-      const midPoint = singleRow ? products.length : Math.ceil(products.length / 2);
+      const midPoint = singleRow
+        ? products.length
+        : Math.ceil(products.length / 2);
       const row1Products = products.slice(0, midPoint);
       const row2Products = singleRow ? [] : products.slice(midPoint);
 
@@ -132,22 +123,25 @@ const ProductShowcase = ({
 
   const ProductSkeleton = () => (
     <div className="shrink-0 animate-pulse w-full">
-      <div className="bg-gray-200 dark:bg-gray-700 aspect-square mb-3"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 mb-2"></div>
-      <div className="h-3 bg-gray-200 dark:bg-gray-700 w-3/4"></div>
+      <div className="bg-gray-200 dark:bg-gray-700 aspect-square mb-2"></div>
+      <div className="h-3 bg-gray-200 dark:bg-gray-700 mb-1"></div>
+      <div className="h-2 bg-gray-200 dark:bg-gray-700 w-3/4"></div>
     </div>
   );
 
   const renderSkeletonRow = () => (
     <div className="w-full">
-      <div className="relative mb-8 overflow-hidden p-2">
+      <div className="relative mb-3 overflow-hidden p-1">
         <div
-          className={`grid gap-2 sm:gap-3 md:gap-4 ${
-            itemsPerView === 2 ? 'grid-cols-2' : 
-            itemsPerView === 3 ? 'grid-cols-3' : 
-            itemsPerView === 4 ? 'grid-cols-4' : 
-            'grid-cols-5'
-            }`}
+          className={`grid gap-1 sm:gap-2 ${
+            itemsPerView === 2
+              ? "grid-cols-2"
+              : itemsPerView === 3
+                ? "grid-cols-3"
+                : itemsPerView === 4
+                  ? "grid-cols-4"
+                  : "grid-cols-5"
+          }`}
         >
           {Array.from({ length: itemsPerView }).map((_, i) => (
             <ProductSkeleton key={i} />
@@ -180,53 +174,58 @@ const ProductShowcase = ({
     };
 
     const showViewMoreButton = products.length > itemsPerView;
-    let itemsToShow: (Product | 'view-more')[] = [];
+    let itemsToShow: (Product | "view-more")[] = [];
 
     if (showViewMoreButton) {
       if (isAtEnd && !isMobile) {
         const slotsForProducts = itemsPerView - 1;
         const lastProducts = products.slice(-slotsForProducts);
-        itemsToShow = [...lastProducts, 'view-more'];
+        itemsToShow = [...lastProducts, "view-more"];
       } else {
         itemsToShow = products.slice(currentIndex, currentIndex + itemsPerView);
         if (isMobile && itemsToShow.length < itemsPerView) {
-          itemsToShow.push('view-more');
+          itemsToShow.push("view-more");
         }
       }
     } else {
       itemsToShow = products;
     }
 
-    const gridClass = `grid gap-2 sm:gap-3 md:gap-4 ${
-      itemsPerView === 2 ? 'grid-cols-2' : 
-      itemsPerView === 3 ? 'grid-cols-3' : 
-      itemsPerView === 4 ? 'grid-cols-4' : 
-      'grid-cols-5'
-      }`;
+    const gridClass = `grid gap-1 sm:gap-1.5 ${
+      itemsPerView === 2
+        ? "grid-cols-2"
+        : itemsPerView === 3
+          ? "grid-cols-3"
+          : itemsPerView === 4
+            ? "grid-cols-4"
+            : "grid-cols-5"
+    }`;
 
     return (
       <div className="w-full">
         <div
-          className="relative overflow-hidden p-2"
+          className="relative overflow-hidden p-1"
           onTouchStart={isMobile ? onTouchStart : undefined}
           onTouchMove={isMobile ? onTouchMove : undefined}
-          onTouchEnd={isMobile ? () => onTouchEnd(setIndex, products) : undefined}
+          onTouchEnd={
+            isMobile ? () => onTouchEnd(setIndex, products) : undefined
+          }
         >
           <div className={gridClass}>
             {itemsToShow.map((item, index) => {
-              if (item === 'view-more') {
+              if (item === "view-more") {
                 return (
                   <div
                     key="view-more"
                     className="flex justify-center items-center min-h-50 sm:min-h-62.5"
                   >
-                    <div className="w-full h-full flex flex-col gap-2">
+                    <div className="w-full h-full flex flex-col gap-1">
                       <NavLink
                         href="/products"
-                        className="flex-1 flex flex-col items-center justify-center border border-white/20 dark:border-gray-700 text-xs sm:text-sm font-medium bg-white/10 dark:bg-gray-800/50 backdrop-blur-md hover:bg-white/20 dark:hover:bg-gray-700/50 hover:border-white/30 dark:hover:border-gray-600 transition-all duration-300 shadow-lg p-4"
+                        className="flex-1 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 p-2"
                       >
                         <svg
-                          className="w-6 h-6 sm:w-8 sm:h-8 mb-2 text-gray-700 dark:text-gray-300"
+                          className="w-4 h-4 mb-1 text-gray-600 dark:text-gray-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -234,11 +233,13 @@ const ProductShowcase = ({
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
+                            strokeWidth={1.5}
                             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                           />
                         </svg>
-                        <span className="text-gray-700 dark:text-gray-300 text-center">View More</span>
+                        <span className="text-gray-700 dark:text-gray-300 text-center text-xs">
+                          View More
+                        </span>
                       </NavLink>
                       <button
                         onClick={(e) => {
@@ -247,7 +248,7 @@ const ProductShowcase = ({
                           setIndex(0);
                           setTimeout(() => setIsUserInteracting(false), 5000);
                         }}
-                        className="w-full py-2 border border-gray-300 dark:border-gray-700 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="w-full py-1 border border-gray-300 dark:border-gray-600 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
                         Back
                       </button>
@@ -272,9 +273,13 @@ const ProductShowcase = ({
             ))}
           </div>
 
-          {!isAtStart && showViewMoreButton && <PrevLeft isMobile={isMobile} onClick={prevSlide} />}
+          {!isAtStart && showViewMoreButton && (
+            <PrevLeft isMobile={isMobile} onClick={prevSlide} />
+          )}
 
-          {!isAtEnd && showViewMoreButton && <PrevRight isMobile={isMobile} onClick={nextSlide} />}
+          {!isAtEnd && showViewMoreButton && (
+            <PrevRight isMobile={isMobile} onClick={nextSlide} />
+          )}
         </div>
       </div>
     );
@@ -282,14 +287,16 @@ const ProductShowcase = ({
 
   if (!mounted || loading) {
     return (
-      <section className={`sm:px-4 ${className}`}>
-        <div className={`mb-6 sm:mb-8 ${singleRow ? 'text-left' : 'text-center'}`}>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-light">{title}</h2>
-          <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">
+      <section className={`sm:px-3 ${className}`}>
+        <div className="mb-2 text-center">
+          <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
+            {title}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
             Handpicked pieces for discerning taste
           </p>
         </div>
-        <div className="space-y-4 px-4 mx-auto">
+        <div className="space-y-2 px-3 mx-auto">
           <div>{renderSkeletonRow()}</div>
           <div>{renderSkeletonRow()}</div>
         </div>
@@ -299,15 +306,19 @@ const ProductShowcase = ({
 
   if (error) {
     return (
-      <section className={`sm:px-4 ${className}`}>
-        <div className={`mb-6 sm:mb-8 ${singleRow ? 'text-left' : 'text-center'}`}>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-light">{title}</h2>
-          <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">{description}</p>
+      <section className={`sm:px-3 ${className}`}>
+        <div className="mb-2 text-center">
+          <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
+            {title}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
+            {description}
+          </p>
         </div>
-        <div className="text-center py-12">
-          <div className="text-gray-500 mb-4">
+        <div className="text-center py-4">
+          <div className="text-gray-500 mb-2">
             <svg
-              className="w-12 h-12 mx-auto mb-4"
+              className="w-6 h-6 mb-1 mx-auto"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -315,16 +326,20 @@ const ProductShowcase = ({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={1.5}
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-sm">Unable to load products right now</p>
-            <p className="text-xs text-gray-400 mt-1">Please try again later</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">
+              Unable to load products right now
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Please try again later
+            </p>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="border border-black text-black px-6 py-2 text-sm font-medium hover:bg-black hover:text-white transition-colors"
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-1 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             Retry
           </button>
@@ -335,15 +350,19 @@ const ProductShowcase = ({
 
   if (products.length === 0) {
     return (
-      <section className={`sm:px-4 ${className}`}>
-        <div className={`mb-6 sm:mb-8 ${singleRow ? 'text-left' : 'text-center'}`}>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-light">{title}</h2>
-          <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">{description}</p>
+      <section className={`sm:px-3 ${className}`}>
+        <div className="mb-2 text-center">
+          <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
+            {title}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
+            {description}
+          </p>
         </div>
-        <div className="text-center py-12">
+        <div className="text-center py-4">
           <div className="text-gray-500">
             <svg
-              className="w-12 h-12 mx-auto mb-4"
+              className="w-6 h-6 mb-1 mx-auto"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -351,11 +370,13 @@ const ProductShowcase = ({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={1.5}
                 d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
               />
             </svg>
-            <p className="text-sm">No products available</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">
+              No products available
+            </p>
           </div>
         </div>
       </section>
@@ -363,22 +384,37 @@ const ProductShowcase = ({
   }
 
   return (
-    <section className={`sm:px-4 ${className}`}>
-      <div className={`mb-6 sm:mb-8 ${singleRow ? 'text-left' : 'text-center'}`}>
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-gray-900 dark:text-gray-100">{title}</h2>
-        <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1 sm:mt-2">{description}</p>
+    <section className={`sm:px-3 ${className}`}>
+      <div className="mb-2 text-center">
+        <h2 className="text-base font-medium text-gray-900 dark:text-gray-100">
+          {title}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
+          {description}
+        </p>
       </div>
 
-      <div className="md:space-y-4">
+      <div className="md:space-y-2">
         {row1Products.length > 0 &&
-          renderProductRow(row1Products, row1Index, setRow1Index, 'Featured Collection')}
-        {!singleRow && row2Products.length > 0 &&
-          renderProductRow(row2Products, row2Index, setRow2Index, 'Trending Now')}
+          renderProductRow(
+            row1Products,
+            row1Index,
+            setRow1Index,
+            "Featured Collection",
+          )}
+        {!singleRow &&
+          row2Products.length > 0 &&
+          renderProductRow(
+            row2Products,
+            row2Index,
+            setRow2Index,
+            "Trending Now",
+          )}
         {!singleRow && (
-          <div className="text-center mt-4">
+          <div className="text-center mt-3">
             <NavLink
               href="/products"
-              className="inline-block px-6 py-2 border border-black dark:border-white text-black dark:text-white font-medium hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors"
+              className="inline-block px-4 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
             >
               View All Products
             </NavLink>

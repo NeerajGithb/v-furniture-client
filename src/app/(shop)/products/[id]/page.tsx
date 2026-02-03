@@ -1,38 +1,73 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import ErrorMessage from '@/components/ui/ErrorMessage';
-import { useSingleProductInit } from './hooks/useSingleProductInit';
-import { useProductActions } from './hooks/useProductActions';
-import ProductMainSection from './components/ProductMainSection';
-import RelatedProductsSection from './components/RelatedProductsSection';
-import { useNavigate } from '@/components/NavigationLoader';
+import { useParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { useProductStore } from "@/stores/productStore";
+import { useProduct, useRelatedProducts } from "@/hooks/useProductData";
+import { useReviews } from "@/hooks/useReviewData";
+import { useCart } from "@/hooks/useCartData";
+import { useWishlist } from "@/hooks/useWishlistData";
+import { useProductActions } from "./hooks/useProductActions";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+import ProductMainSection from "./components/ProductMainSection";
+import RelatedProductsSection from "./components/RelatedProductsSection";
+import { useNavigate } from "@/components/NavigationLoader";
+import { useEffect } from "react";
 
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useCurrentUser();
+  const { user, authLoading } = useAuth(); // Both from same source
+  const { quantity, setQuantity } = useProductStore();
 
-  const productId = typeof id === 'string' ? id.split('-').pop() : undefined;
+  const productId = typeof id === "string" ? id.split("-").pop() : undefined;
+
+  // Check if user is ready for private data calls
+  const isUserReady = !authLoading && !!user;
+
+  // Public data - can fetch immediately
+  const {
+    data: product,
+    isLoading: productLoading,
+    error: productError,
+  } = useProduct(productId || "");
+
+  const categoryName = product?.categoryId?.name;
 
   const {
-    product,
-    relatedProducts,
-    allProducts,
-    loading,
-    loadingMore,
-    loadingAll,
-    error,
+    data: relatedProducts = [],
+    isLoading: relatedLoading,
+    error: relatedError,
+  } = useRelatedProducts(categoryName, productId);
+
+  const {
+    data: reviewsData,
+    isLoading: reviewsLoading,
+    error: reviewsError,
+  } = useReviews(productId || "", "all");
+
+  // User-related data - only fetch when user is ready
+  const { data: cart } = useCart(isUserReady);
+  const { data: wishlist } = useWishlist(isUserReady);
+
+  // User-related actions - only initialize when user is ready
+  const actions = useProductActions(
+    product || null,
     quantity,
-    setQuantity,
-    hasFetched,
-  } = useSingleProductInit(productId);
+    isUserReady ? user?.id : undefined,
+  );
 
-  const actions = useProductActions(product, quantity, user?.id);
+  // Reset quantity when product changes
+  useEffect(() => {
+    if (product) {
+      setQuantity(1);
+    }
+  }, [product, setQuantity]);
 
-  // Loading skeleton
-  if (loading && !hasFetched) {
+  // Loading state for initial page load
+  const isInitialLoading = productLoading && !product;
+
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419] px-4 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
@@ -42,7 +77,10 @@ export default function SingleProductPage() {
               <div className="bg-gray-200 dark:bg-gray-700 aspect-square rounded-lg mb-4"></div>
               <div className="flex gap-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div
+                    key={i}
+                    className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded"
+                  ></div>
                 ))}
               </div>
             </div>
@@ -65,10 +103,24 @@ export default function SingleProductPage() {
     );
   }
 
-  if (!product && hasFetched) {
+  // Product not found
+  if (!product && !productLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419] flex items-center justify-center">
-        <button onClick={() => navigate.push('/products')} className="px-6 py-3 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors">Browse Products</button>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Product Not Found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The product you're looking for doesn't exist.
+          </p>
+          <button
+            onClick={() => navigate.push("/products")}
+            className="px-6 py-3 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
+          >
+            Browse Products
+          </button>
+        </div>
       </div>
     );
   }
@@ -78,7 +130,10 @@ export default function SingleProductPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f1419] px-4 lg:px-8">
       {actions.error && (
-        <ErrorMessage message={actions.error} onClose={() => actions.setError(null)} />
+        <ErrorMessage
+          message={actions.error}
+          onClose={() => actions.setError(null)}
+        />
       )}
 
       <ProductMainSection
@@ -86,19 +141,25 @@ export default function SingleProductPage() {
         quantity={quantity}
         setQuantity={setQuantity}
         actions={actions}
-        userId={user?.id}
+        user={user}
+        authLoading={authLoading}
+        error={productError ? String(productError) : null}
+        reviewsData={
+          reviewsData || {
+            reviews: [],
+            stats: { totalReviews: 0, averageRating: 0, breakdown: {} },
+            userHasReviewed: false,
+          }
+        }
+        reviewsLoading={reviewsLoading}
+        reviewsError={reviewsError ? String(reviewsError) : null}
       />
 
       <RelatedProductsSection
         title="Similar Products"
         products={relatedProducts}
-        loading={loadingMore}
-      />
-
-      <RelatedProductsSection
-        title="More Products"
-        products={allProducts}
-        loading={loadingAll}
+        loading={relatedLoading}
+        error={relatedError ? String(relatedError) : null}
       />
     </div>
   );

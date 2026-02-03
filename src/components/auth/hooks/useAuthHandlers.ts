@@ -1,219 +1,112 @@
 // components/auth/hooks/useAuthHandlers.ts
 
 import { useAuth } from "@/context/AuthContext";
-import {
-  fetchWithCredentials,
-  handleApiResponse,
-} from "@/utils/fetchWithCredentials";
-import { handleAuthError } from "@/lib/security/handleAuthError";
-import { isValidEmail, isValidPassword } from "@/utils/validators";
-import toast from "react-hot-toast";
-import { getErrorMessage } from "@/utils/getErrorMessage";
-import { normalizeError } from "@/utils/normalizeError";
+import { authService } from "@/services/authService";
 
 export const useAuthHandlers = () => {
   const { refetch } = useAuth();
 
-  const fetchUserAfterAuth = async () => {
-    try {
-      await refetch();
-    } catch (err) {
-      console.error(
-        "❌ Failed to fetch user after login:",
-        getErrorMessage(err),
-      );
-    }
-  };
-
+  // Handle user login with email and password
   const handleLogin = async (
     email: string,
     password: string,
     setError: (error: string | null) => void,
-    setIsOAuth: (isOAuth: boolean) => void,
   ) => {
-    if (!isValidEmail(email)) {
-      setError("Invalid email address.");
-      return false;
-    }
-    if (!isValidPassword(password)) {
-      setError("Password must be at least 6 characters.");
-      return false;
-    }
-
     try {
-      const res = await fetchWithCredentials("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const json = await handleApiResponse(res);
-      if (!res.ok) throw { status: res.status, body: json };
-
-      toast.success("Welcome back! Login successful.");
-      await fetchUserAfterAuth();
+      await authService.login({ email, password });
+      await refetch();
       return true;
-    } catch (err) {
-      const error = normalizeError(err);
-
-      console.warn("[Mongo] Login error", error.status, error.body);
-      handleAuthError(error.status || 500, error.body, setError);
-
-      // Check if email exists with OAuth
-      try {
-        const res = await fetchWithCredentials("/api/auth/check-email-exists", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-
-        const data = await handleApiResponse(res);
-        if (data.exists && data.hasOAuth) {
-          setIsOAuth(true);
-        }
-      } catch (checkErr) {
-        console.error("Email check error:", checkErr);
-      }
-
+    } catch (error: any) {
+      setError(error.message);
       return false;
     }
   };
 
+  // Handle user registration and email verification flow
   const handleSignup = async (
     name: string,
     email: string,
     password: string,
     confirmPassword: string,
     setError: (error: string | null) => void,
-  ): Promise<boolean | { requiresVerification: true; email: string; name: string }> => {
-    if (!isValidEmail(email)) {
-      setError("Invalid email address.");
-      return false;
-    }
-    if (!isValidPassword(password)) {
-      setError("Password must be at least 6 characters.");
-      return false;
-    }
+  ): Promise<
+    boolean | { requiresVerification: true; email: string; name: string }
+  > => {
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return false;
     }
 
     try {
-      const res = await fetchWithCredentials("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: name || "No Name",
-          email,
-          password,
-        }),
+      const result = await authService.register({
+        name: name,
+        email,
+        password,
       });
 
-      const json = await handleApiResponse(res);
-      if (!res.ok) throw { status: res.status, body: json };
-
-      // Check if email verification is required
-      if (json.requiresVerification) {
-        toast.success("Account created! Please check your email for verification code.");
-        return { requiresVerification: true, email, name: name || "User" };
+      if (result.requiresVerification) {
+        return { requiresVerification: true, email, name: name };
       }
-
-      // OAuth users are logged in immediately
-      toast.success("Account created successfully! Welcome aboard.");
-      await fetchUserAfterAuth();
+      await refetch();
       return true;
-    } catch (err) {
-      const error = normalizeError(err);
-      handleAuthError(error.status || 500, error.body, setError);
+    } catch (error: any) {
+      setError(error.message);
       return false;
     }
   };
 
+  // Send password reset code to user's email
   const handleSendResetCode = async (email: string) => {
-    const res = await fetchWithCredentials("/api/auth/send-reset-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await handleApiResponse(res);
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to send reset code");
+    try {
+      return await authService.sendResetCode({ email });
+    } catch (error: any) {
+      throw error; // Re-throw to be handled by the calling component
     }
-
-    return data;
   };
 
+  // Verify password reset code
   const handleVerifyCode = async (email: string, code: string) => {
-    const res = await fetchWithCredentials("/api/auth/verify-reset-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code: code.trim() }),
-    });
-
-    const data = await handleApiResponse(res);
-
-    if (!res.ok) {
-      throw new Error(data.error || "Invalid verification code");
+    try {
+      return await authService.verifyResetCode({ email, code: code.trim() });
+    } catch (error: any) {
+      throw error; // Re-throw to be handled by the calling component
     }
-
-    return data;
   };
 
-  const handleResetPassword = async (
-    email: string,
-    code: string,
-    newPassword: string,
-  ) => {
-    const res = await fetchWithCredentials("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code, newPassword }),
-    });
-
-    const data = await handleApiResponse(res);
-
-    if (!res.ok) {
-      throw new Error(data.error || "Password reset failed");
+  // Reset user password with new password
+  const handleResetPassword = async (email: string, newPassword: string) => {
+    try {
+      return await authService.resetPassword({ email, newPassword });
+    } catch (error: any) {
+      throw error; // Re-throw to be handled by the calling component
     }
-
-    return data;
   };
 
-  const handleSendVerificationCode = async (email: string, name: string) => {
-    const res = await fetchWithCredentials("/api/auth/send-verification-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, name }),
-    });
-
-    const data = await handleApiResponse(res);
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to send verification code");
+  // Resend OTP for email verification
+  const handleResendOTP = async (email: string) => {
+    try {
+      return await authService.resendOTP({ email });
+    } catch (error: any) {
+      throw error; // Re-throw to be handled by the calling component
     }
-
-    return data;
   };
 
+  // Send verification code for email verification
+  const handleSendVerificationCode = async (email: string, name?: string) => {
+    return handleResendOTP(email);
+  };
+
+  // Verify email code and log user in
   const handleVerifyEmailCode = async (email: string, code: string) => {
-    const res = await fetchWithCredentials("/api/auth/verify-email-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code: code.trim() }),
-    });
-
-    const data = await handleApiResponse(res);
-
-    if (!res.ok) {
-      throw new Error(data.error || "Invalid verification code");
+    try {
+      const result = await authService.verifyEmailCode({
+        email,
+        code: code.trim(),
+      });
+      return result;
+    } catch (error: any) {
+      throw error; // Re-throw to be handled by the calling component
     }
-
-    return data;
   };
 
   return {
@@ -222,6 +115,7 @@ export const useAuthHandlers = () => {
     handleSendResetCode,
     handleVerifyCode,
     handleResetPassword,
+    handleResendOTP,
     handleSendVerificationCode,
     handleVerifyEmailCode,
   };

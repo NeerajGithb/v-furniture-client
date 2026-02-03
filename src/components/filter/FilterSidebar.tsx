@@ -1,39 +1,50 @@
-import { useEffect, useRef, useMemo } from 'react';
-import { X, SlidersHorizontal } from 'lucide-react';
-import { usePathname } from 'next/navigation';
-import { FilterSidebarProps } from './types';
-import { SortSection } from './sections/SortSection';
-import { PriceRangeSection } from './sections/PriceRangeSection';
-import { MaterialSection } from './sections/MaterialSection';
-import { CategorySection } from './sections/CategorySection';
-import { SubcategorySection } from './sections/SubcategorySection';
-import { DiscountSection } from './sections/DiscountSection';
-import { AvailabilitySection } from './sections/AvailabilitySection';
-import { FilterSkeleton, PriceRangeSkeleton } from './sections/FilterSkeleton';
-import { useFilterState } from './hooks/useFilterState';
-import { useFilterParams } from './hooks/useFilterParams';
-import { useFilterActions } from './hooks/useFilterActions';
-import { getQuickPriceRanges } from './utils';
+import { useRef, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { X, SlidersHorizontal } from "lucide-react";
+import { FilterSidebarProps } from "./types";
+import { SortSection } from "./sections/SortSection";
+import { PriceRangeSection } from "./sections/PriceRangeSection";
+import { MaterialSection } from "./sections/MaterialSection";
+import { CategorySection } from "./sections/CategorySection";
+import { SubcategorySection } from "./sections/SubcategorySection";
+import { DiscountSection } from "./sections/DiscountSection";
+import { AvailabilitySection } from "./sections/AvailabilitySection";
+import { useFilterState } from "./hooks/useFilterState";
+import { useProductFilters } from "@/components/shared/hooks/useProductFilters";
+import { useCategories, useSubcategories } from "@/hooks/useCategoryData";
+import { useProductData } from "@/components/shared/hooks/useProductData";
+import { useNavigate } from "@/components/NavigationLoader";
 
-const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProps) => {
-  const pathname = usePathname();
+const FilterSidebar = ({
+  isMobile = false,
+  onClose,
+}: FilterSidebarProps) => {
+  const sliderRef = useRef<any>(null);
   const sidebarRef = useRef<HTMLDivElement | null>(null);
-  const currentSlug = pathname.slice(1);
-  const isSearchPage = pathname === '/search';
-
+  const navigate = useNavigate();
+  
+  const currentPath = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Get search query for search pages
+  const searchQuery = currentPath.includes('/search') ? searchParams.get('q') || '' : undefined;
+  
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     let ticking = false;
-    let lastScrolled = false;
 
     const handleScroll = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
           const scrolled = window.scrollY > 80;
-          if (scrolled !== lastScrolled) {
-            lastScrolled = scrolled;
-            if (sidebarRef.current) {
-              sidebarRef.current.classList.toggle('top-[50px]', scrolled);
-              sidebarRef.current.classList.toggle('top-0', !scrolled);
+          if (sidebarRef.current) {
+            if (scrolled) {
+              sidebarRef.current.classList.remove('top-0');
+              sidebarRef.current.classList.add('top-[50px]');
+            } else {
+              sidebarRef.current.classList.remove('top-[50px]');
+              sidebarRef.current.classList.add('top-0');
             }
           }
           ticking = false;
@@ -42,148 +53,141 @@ const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProp
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const { expandedSections, toggleSection, safeFilters } = useFilterState(filters, isMobile);
-
-  // Check if data is still loading - only check categories since they're always needed
-  // Materials can be empty even when data is loaded
-  const isLoading = safeFilters.categories.length === 0;
-
-  const slugAnalysis = useMemo(() => {
-    // For search page, use detected filters instead of slug
-    if (isSearchPage) {
-      const detectedCategory = filters.detectedCategory;
-      const detectedSubcategory = filters.detectedSubcategory;
-      
-      if (detectedSubcategory) {
-        const matchedSubcategory = safeFilters.subcategories.find(sub => sub.slug === detectedSubcategory);
-        if (matchedSubcategory) {
-          const parentCategory = safeFilters.categories.find(cat => {
-            const categoryId =
-              typeof matchedSubcategory.categoryId === 'object'
-                ? matchedSubcategory.categoryId._id
-                : matchedSubcategory.categoryId;
-            return cat._id === categoryId;
-          });
-          return { type: 'subcategory', data: matchedSubcategory, parentCategory };
-        }
-      }
-      
-      if (detectedCategory) {
-        const matchedCategory = safeFilters.categories.find(cat => 
-          cat.slug === detectedCategory || cat.name?.toLowerCase() === detectedCategory.toLowerCase()
-        );
-        if (matchedCategory) {
-          return { type: 'category', data: matchedCategory, parentCategory: null };
-        }
-      }
-      
-      return { type: null, data: null, parentCategory: null };
-    }
-    
-    // For slug pages, use the slug
-    if (!currentSlug || currentSlug === 'products') {
-      return { type: null, data: null, parentCategory: null };
-    }
-
-    const matchedCategory = safeFilters.categories.find(cat => cat.slug === currentSlug);
-    if (matchedCategory) {
-      return { type: 'category', data: matchedCategory, parentCategory: null };
-    }
-
-    const matchedSubcategory = safeFilters.subcategories.find(sub => sub.slug === currentSlug);
-    if (matchedSubcategory) {
-      const parentCategory = safeFilters.categories.find(cat => {
-        const categoryId =
-          typeof matchedSubcategory.categoryId === 'object'
-            ? matchedSubcategory.categoryId._id
-            : matchedSubcategory.categoryId;
-        return cat._id === categoryId;
-      });
-      return { type: 'subcategory', data: matchedSubcategory, parentCategory };
-    }
-    return { type: null, data: null, parentCategory: null };
-  }, [currentSlug, safeFilters.categories, safeFilters.subcategories, isSearchPage, filters.detectedCategory, filters.detectedSubcategory]);
-
-  const urlParams = useFilterParams(slugAnalysis.type, slugAnalysis.data, slugAnalysis.parentCategory);
-
-  const defaultMinPrice = safeFilters.priceRange.minPrice;
-  const defaultMaxPrice = safeFilters.priceRange.maxPrice;
-
   const {
-    sliderRef,
-    handleCategoryChange,
-    handleSubcategoryChange,
-    handleMaterialChange,
-    handlePriceRangeChange,
-    handleCheckboxChange,
-    handleSortChange,
-    handleQuickPriceRangeChange,
-    handleDiscountChange,
+    filters: currentFilters,
+    hasActiveFilters,
+    activeFilterCount,
+    updateFilters,
     clearAllFilters,
-  } = useFilterActions(currentSlug, defaultMinPrice, defaultMaxPrice, isMobile, onClose);
+  } = useProductFilters(currentPath);
 
-  const currentMinPrice = urlParams.minPrice ? parseInt(urlParams.minPrice) : defaultMinPrice;
-  const currentMaxPrice = urlParams.maxPrice ? parseInt(urlParams.maxPrice) : defaultMaxPrice;
+  const { data: categories = [], isLoading: categoryLoading } = useCategories();
+  const { data: subcategories = [], isLoading: subcategoryLoading } = useSubcategories();
+  
+  const { data: productData, isLoading: productDataLoading } = useProductData({
+    pageType: currentPath.includes('/search') ? 'search' : currentPath === '/products' ? 'products' : 'category',
+    slug: currentPath.split('/')[1],
+    query: searchQuery, // Pass search query for search pages
+    filters: currentFilters,
+  });
 
-  const validatedPriceRange: [number, number] = useMemo(() => {
-    const min = Math.max(defaultMinPrice, Math.min(currentMinPrice, defaultMaxPrice - 1));
-    const max = Math.max(min + 1, Math.min(currentMaxPrice, defaultMaxPrice));
-    return [min, max];
-  }, [currentMinPrice, currentMaxPrice, defaultMinPrice, defaultMaxPrice]);
 
-  const availableSubcategories = useMemo(() => {
-    if (!urlParams.category) return [];
-    const currentCategory = safeFilters.categories.find(cat => cat.slug === urlParams.category);
-    if (!currentCategory) return [];
-    return safeFilters.subcategories.filter(sub => {
-      const categoryId = typeof sub.categoryId === 'object' ? sub.categoryId._id : sub.categoryId;
-      return categoryId === currentCategory._id;
-    });
-  }, [safeFilters.subcategories, safeFilters.categories, urlParams.category]);
+  const firstPage = productData?.pages?.[0];
+  const apiFilters: any = firstPage && 'filters' in firstPage ? firstPage.filters : { materials: [], priceRange: { minPrice: 0, maxPrice: 100000 } };
+  const appliedFilters = apiFilters?.appliedFilters || {};
 
-  const getSelectedQuickPriceRange = () => {
-    if (!urlParams.minPrice && !urlParams.maxPrice) return '';
-    const currentRange = `${currentMinPrice}-${currentMaxPrice}`;
-    const quickPriceRanges = getQuickPriceRanges(defaultMinPrice, defaultMaxPrice);
-    return quickPriceRanges.find(range => range.value === currentRange)?.value || '';
+  // Only show loading skeleton when we truly don't have filter data yet
+  const hasFilterData = Boolean(apiFilters?.materials || apiFilters?.priceRange);
+  const shouldShowFilterLoading = !hasFilterData && productDataLoading;
+
+  const safeFilters = {
+    categories: categories || [],
+    subcategories: subcategories || [],
+    materials: apiFilters?.materials || [],
+    priceRange: apiFilters?.priceRange || { minPrice: 0, maxPrice: 100000 },
   };
 
-  const hasActiveFilters = useMemo(() => {
-    return !!(
-      (urlParams.subcategory && slugAnalysis.type === 'category') ||
-      urlParams.material ||
-      urlParams.minPrice ||
-      urlParams.maxPrice ||
-      urlParams.inStock ||
-      urlParams.onSale ||
-      urlParams.discount ||
-      (urlParams.sort && urlParams.sort !== 'newest')
-    );
-  }, [urlParams, slugAnalysis.type]);
+  // Merge URL filters with applied filters from API
+  const effectiveFilters = {
+    ...currentFilters,
+    // Use applied filters from API if not overridden by URL params
+    category: currentFilters.category || appliedFilters.category || undefined,
+    subcategory: currentFilters.subcategory || appliedFilters.subcategory || undefined,
+    material: currentFilters.material || appliedFilters.material || undefined,
+    minPrice: currentFilters.minPrice || (appliedFilters.minPrice ? appliedFilters.minPrice.toString() : undefined),
+    maxPrice: currentFilters.maxPrice || (appliedFilters.maxPrice ? appliedFilters.maxPrice.toString() : undefined),
+    inStock: currentFilters.inStock || appliedFilters.inStock || false,
+    onSale: currentFilters.onSale || appliedFilters.onSale || false,
+    discount: currentFilters.discount || appliedFilters.discount || undefined,
+    sort: currentFilters.sort || appliedFilters.sort || "newest",
+  };
 
-  const activeFiltersCount = useMemo(() => {
-    const filters = [
-      urlParams.subcategory && slugAnalysis.type === 'category',
-      urlParams.material,
-      urlParams.minPrice || urlParams.maxPrice,
-      urlParams.inStock,
-      urlParams.onSale,
-      urlParams.discount,
-      urlParams.sort !== 'newest' ? urlParams.sort : null,
-    ];
-    return filters.filter(Boolean).length;
-  }, [urlParams, slugAnalysis.type]);
+  const { expandedSections, toggleSection } = useFilterState(safeFilters, isMobile);
+
+  // Price range values
+  const defaultMinPrice = safeFilters.priceRange.minPrice;
+  const defaultMaxPrice = safeFilters.priceRange.maxPrice;
+  const currentMinPrice = effectiveFilters.minPrice ? parseInt(effectiveFilters.minPrice) : defaultMinPrice;
+  const currentMaxPrice = effectiveFilters.maxPrice ? parseInt(effectiveFilters.maxPrice) : defaultMaxPrice;
+
+  // Handler functions
+  const handleSortChange = (sort: string) => {
+    updateFilters({ sort: sort === "newest" ? undefined : sort });
+  };
+
+  const handlePriceRangeChange = (range: [number, number]) => {
+    updateFilters({
+      minPrice: range[0] !== defaultMinPrice ? range[0].toString() : undefined,
+      maxPrice: range[1] !== defaultMaxPrice ? range[1].toString() : undefined,
+    });
+  };
+
+  const handleMaterialChange = (material: string) => {
+    // Convert material to URL-friendly slug
+    const materialSlug = material ? material.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-+|-+$/g, '') : undefined;
+    updateFilters({ material: materialSlug });
+  };
+
+  const handleCategoryChange = (category: string) => {
+    if (category) {
+      navigate.push(`/${category}`);
+    }
+  };
+
+  const handleSubcategoryChange = (subcategory: string) => {
+    if (subcategory) {
+      navigate.push(`/${subcategory}`);
+    }
+  };
+
+  const handleDiscountChange = (discount: string) => {
+    updateFilters({ discount: discount || undefined });
+  };
+
+  const handleCheckboxChange = (key: string, value: boolean) => {
+    updateFilters({ [key]: value || undefined });
+  };
+
+  const handleQuickPriceRangeChange = (range: string) => {
+    if (!range) {
+      updateFilters({ minPrice: undefined, maxPrice: undefined });
+    } else {
+      const [min, max] = range.split("-").map(Number);
+      updateFilters({
+        minPrice: min !== defaultMinPrice ? min.toString() : undefined,
+        maxPrice: max !== defaultMaxPrice ? max.toString() : undefined,
+      });
+    }
+  };
+
+  const getSelectedQuickPriceRange = () => {
+    if (!effectiveFilters.minPrice && !effectiveFilters.maxPrice) return "";
+    return `${currentMinPrice}-${currentMaxPrice}`;
+  };
+
+  // Available subcategories based on selected category
+  const availableSubcategories = effectiveFilters.category && safeFilters.subcategories.length > 0
+    ? safeFilters.subcategories.filter((sub: any) => {
+        const currentCategory = safeFilters.categories.find((cat: any) => cat.slug === effectiveFilters.category);
+        if (!currentCategory || !sub.categoryId) return false;
+        const categoryId = typeof sub.categoryId === "object" && sub.categoryId ? sub.categoryId._id : sub.categoryId;
+        return categoryId === currentCategory._id;
+      })
+    : [];
 
   const sidebarContent = (
     <div className="h-full">
       <div className="flex items-center justify-between p-4 pb-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-          <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Filters</h2>
+          <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+            Filters
+          </h2>
         </div>
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
@@ -195,124 +199,93 @@ const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProp
             </button>
           )}
           {isMobile && onClose && (
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-sm transition-colors">
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-sm transition-colors"
+            >
               <X className="w-5 h-5 dark:text-gray-300" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="space-y-0 overflow-y-auto p-4 scrollbar-thin" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+      <div
+        className="space-y-0 overflow-y-auto p-4 scrollbar-thin"
+        style={{ maxHeight: "calc(100vh - 120px)" }}
+      >
         <SortSection
           isExpanded={expandedSections.priceSort}
-          onToggle={() => toggleSection('priceSort')}
-          selectedSort={urlParams.sort}
+          onToggle={() => toggleSection("priceSort")}
+          selectedSort={effectiveFilters.sort || "newest"}
           onSortChange={handleSortChange}
           isMobile={isMobile}
         />
 
-        {isLoading ? (
-          <>
-            <PriceRangeSkeleton
-              isExpanded={expandedSections.priceRange}
-              onToggle={() => toggleSection('priceRange')}
-            />
-            <FilterSkeleton
-              title="Quick Price Ranges"
-              isExpanded={expandedSections.quickPriceRanges}
-              onToggle={() => toggleSection('quickPriceRanges')}
-              itemCount={4}
-            />
-            <FilterSkeleton
-              title="Material"
-              isExpanded={expandedSections.material}
-              onToggle={() => toggleSection('material')}
-              itemCount={6}
-            />
-            <FilterSkeleton
-              title="Discount"
-              isExpanded={expandedSections.discount}
-              onToggle={() => toggleSection('discount')}
-              itemCount={4}
-            />
-            <FilterSkeleton
-              title="Category"
-              isExpanded={expandedSections.category}
-              onToggle={() => toggleSection('category')}
-              itemCount={5}
-            />
-            <FilterSkeleton
-              title="Subcategory"
-              isExpanded={expandedSections.subcategory}
-              onToggle={() => toggleSection('subcategory')}
-              itemCount={4}
-            />
-          </>
-        ) : (
-          <>
-            <PriceRangeSection
-              isExpanded={expandedSections.priceRange}
-              onToggle={() => toggleSection('priceRange')}
-              minPrice={defaultMinPrice}
-              maxPrice={defaultMaxPrice}
-              value={validatedPriceRange}
-              onChange={handlePriceRangeChange}
-              sliderRef={sliderRef}
-              selectedQuickRange={getSelectedQuickPriceRange()}
-              onQuickRangeChange={handleQuickPriceRangeChange}
-              isMobile={isMobile}
-              quickRangeExpanded={expandedSections.quickPriceRanges}
-              onQuickRangeToggle={() => toggleSection('quickPriceRanges')}
-            />
+        <PriceRangeSection
+          isExpanded={expandedSections.priceRange}
+          onToggle={() => toggleSection("priceRange")}
+          minPrice={defaultMinPrice}
+          maxPrice={defaultMaxPrice}
+          value={[currentMinPrice, currentMaxPrice]}
+          onChange={handlePriceRangeChange}
+          sliderRef={sliderRef}
+          selectedQuickRange={getSelectedQuickPriceRange()}
+          onQuickRangeChange={handleQuickPriceRangeChange}
+          isMobile={isMobile}
+          quickRangeExpanded={expandedSections.quickPriceRanges}
+          onQuickRangeToggle={() => toggleSection("quickPriceRanges")}
+          isLoading={shouldShowFilterLoading}
+        />
 
-            <MaterialSection
-              isExpanded={expandedSections.material}
-              onToggle={() => toggleSection('material')}
-              materials={safeFilters.materials}
-              material={urlParams.material}
-              onMaterialChange={handleMaterialChange}
-              isMobile={isMobile}
-            />
+        <MaterialSection
+          isExpanded={expandedSections.material}
+          onToggle={() => toggleSection("material")}
+          materials={safeFilters.materials}
+          material={effectiveFilters.material || ""}
+          onMaterialChange={handleMaterialChange}
+          isMobile={isMobile}
+          isLoading={shouldShowFilterLoading}
+        />
 
-            <DiscountSection
-              isExpanded={expandedSections.discount}
-              onToggle={() => toggleSection('discount')}
-              selectedDiscount={urlParams.discount}
-              onDiscountChange={handleDiscountChange}
-              isMobile={isMobile}
-            />
+        <DiscountSection
+          isExpanded={expandedSections.discount}
+          onToggle={() => toggleSection("discount")}
+          selectedDiscount={effectiveFilters.discount || ""}
+          onDiscountChange={handleDiscountChange}
+          isMobile={isMobile}
+        />
 
-            <CategorySection
-              isExpanded={expandedSections.category}
-              onToggle={() => toggleSection('category')}
-              categories={safeFilters.categories}
-              category={urlParams.category}
-              onCategoryChange={handleCategoryChange}
-              isMobile={isMobile}
-            />
+        <CategorySection
+          isExpanded={expandedSections.category}
+          onToggle={() => toggleSection("category")}
+          categories={safeFilters.categories}
+          category={effectiveFilters.category || ""}
+          onCategoryChange={handleCategoryChange}
+          isMobile={isMobile}
+          isLoading={categoryLoading}
+        />
 
-            <SubcategorySection
-              isExpanded={expandedSections.subcategory}
-              onToggle={() => toggleSection('subcategory')}
-              subcategories={availableSubcategories}
-              subcategory={urlParams.subcategory}
-              onSubcategoryChange={handleSubcategoryChange}
-              isMobile={isMobile}
-            />
-          </>
-        )}
+        <SubcategorySection
+          isExpanded={expandedSections.subcategory}
+          onToggle={() => toggleSection("subcategory")}
+          subcategories={availableSubcategories}
+          subcategory={effectiveFilters.subcategory || ""}
+          onSubcategoryChange={handleSubcategoryChange}
+          isMobile={isMobile}
+          isLoading={subcategoryLoading}
+        />
 
         <AvailabilitySection
           isExpanded={expandedSections.availability}
-          onToggle={() => toggleSection('availability')}
-          inStock={urlParams.inStock}
-          onSale={urlParams.onSale}
+          onToggle={() => toggleSection("availability")}
+          inStock={effectiveFilters.inStock || false}
+          onSale={effectiveFilters.onSale || false}
           onCheckboxChange={handleCheckboxChange}
         />
       </div>
 
       {isMobile && (
-        <div className="sticky bottom-0 bg-white dark:bg-[#0f1419] pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+        <div className="sticky bottom-0 bg-white dark:bg-gray-900 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
           <button
             onClick={onClose}
             className="w-full px-4 py-3 bg-black dark:bg-white text-white dark:text-black rounded-sm text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-all transform hover:scale-[1.02] shadow-lg"
@@ -320,7 +293,7 @@ const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProp
             Apply Filters
             {hasActiveFilters && (
               <span className="ml-2 bg-white dark:bg-black text-black dark:text-white px-1.5 py-0.5 rounded-full text-xs font-semibold">
-                {activeFiltersCount}
+                {activeFilterCount}
               </span>
             )}
           </button>
@@ -328,9 +301,12 @@ const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProp
       )}
     </div>
   );
-
   if (isMobile) {
-    return <div className="w-80 bg-white dark:bg-[#0f1419] h-full shadow-lg overflow-hidden min-h-screen">{sidebarContent}</div>;
+    return (
+      <div className="w-80 bg-white dark:bg-[#0f1419] h-full shadow-lg overflow-hidden min-h-screen">
+        {sidebarContent}
+      </div>
+    );
   }
 
   return (
@@ -338,7 +314,7 @@ const FilterSidebar = ({ filters, isMobile = false, onClose }: FilterSidebarProp
       <div
         ref={sidebarRef}
         className="sticky max-h-screen overflow-y-auto scrollbar-thin transition-all duration-300 top-0"
-        style={{ transition: 'top 0.8s ease-in-out' }}
+        style={{ transition: "top 0.8s ease-in-out" }}
       >
         {sidebarContent}
       </div>

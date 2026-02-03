@@ -1,40 +1,56 @@
-'use client';
+"use client";
 
-import { useRef, useState, useEffect } from 'react';
-import { ShoppingBag } from 'lucide-react';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useCart, useUpdateCartQuantity, useClearCart } from '@/hooks/useCartData';
-import { useAddToWishlist, useRemoveFromWishlist, useWishlist, useWishlistHelpers } from '@/hooks/useWishlistData';
-import { useCartStore } from '@/stores/cartStore';
-import { useAuthStore } from '@/stores/authStore';
-import PriceSummaryCard from '@/components/ui/PriceSummaryCard';
-import toast from 'react-hot-toast';
-import { CartHeader } from './components/CartHeader';
-import { CartSkeleton } from './components/CartSkeleton';
-import { EmptyCart } from './components/EmptyCart';
-import { CartItemsList } from './components/CartItemsList';
-import { FixedCheckoutBar } from './components/FixedCheckoutBar';
-import { useNavigate } from '@/components/NavigationLoader/useNavigate';
-import { useCartCheckout } from './hooks/useCartCheckout';
+import { useRef, useState, useEffect } from "react";
+import { ShoppingBag } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import {
+  useCart,
+  useUpdateCartQuantity,
+  useClearCart,
+  useCartHelpers,
+} from "@/hooks/useCartData";
+import {
+  useAddToWishlist,
+  useRemoveFromWishlist,
+  useWishlist,
+  useWishlistHelpers,
+} from "@/hooks/useWishlistData";
+import { useCartStore } from "@/stores/cartStore";
+import { useCheckoutStore } from "@/stores/checkoutStore";
+import PriceSummaryCard from "@/components/ui/PriceSummaryCard";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { CartHeader } from "./components/CartHeader";
+import { CartItemsList } from "./components/CartItemsList";
+import { FixedCheckoutBar } from "./components/FixedCheckoutBar";
+import { useNavigate } from "@/components/NavigationLoader/useNavigate";
 
 const CartPage = () => {
-  const { user } = useCurrentUser();
-  const { authLoading } = useAuthStore();
+  const { user, authLoading } = useAuth();
   const navigate = useNavigate();
   const priceCardRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [showFixedCheckout, setShowFixedCheckout] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
 
-  // Use new hooks
-  const { data: cart, isLoading: loading } = useCart();
-  const { data: wishlist } = useWishlist();
+  // Check if user is ready for private data calls
+  const isUserReady = !authLoading && !!user;
+
+  // Data fetching hooks
+  const { data: cart, isLoading: loading } = useCart(isUserReady);
+  const { data: wishlist } = useWishlist(isUserReady);
   const wishlistHelpers = useWishlistHelpers(wishlist);
-  const updateQuantityMutation = useUpdateCartQuantity();
-  const clearCartMutation = useClearCart();
-  const addToWishlistMutation = useAddToWishlist();
-  const removeFromWishlistMutation = useRemoveFromWishlist();
+  const { getSelectedCartItems, getCheckoutData } = useCartHelpers(
+    cart || null,
+  );
 
+  // Mutation hooks
+  const updateQuantityMutation = useUpdateCartQuantity(isUserReady);
+  const clearCartMutation = useClearCart(isUserReady);
+  const addToWishlistMutation = useAddToWishlist(isUserReady);
+  const removeFromWishlistMutation = useRemoveFromWishlist(isUserReady);
+
+  // Store hooks
   const {
     checkout,
     toggleItemSelection,
@@ -46,6 +62,7 @@ const CartPage = () => {
     isUpdating,
     calculateCheckoutTotals,
   } = useCartStore();
+  const checkoutStore = useCheckoutStore();
 
   // Calculate checkout totals when cart or selections change
   useEffect(() => {
@@ -55,15 +72,14 @@ const CartPage = () => {
     cart?.items,
     checkout.selectedItems,
     checkout.insuranceEnabled,
-    calculateCheckoutTotals
+    calculateCheckoutTotals,
   ]);
 
+  // Sticky checkout bar logic (moved from hook)
   useEffect(() => {
     let ticking = false;
-
     const handleScroll = () => {
       if (ticking) return;
-
       ticking = true;
       requestAnimationFrame(() => {
         if (priceCardRef.current) {
@@ -73,174 +89,212 @@ const CartPage = () => {
         ticking = false;
       });
     };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-
-
-  const handleUpdateQuantity = async (productId: string, quantity: number) => {
-    try {
-      await updateQuantityMutation.mutateAsync({ productId, quantity });
-    } catch {
-      setError('Failed to update quantity');
+  // Cart checkout logic (moved from hook)
+  const handleCheckout = () => {
+    const selectedItems = getSelectedCartItems(checkout.selectedItems);
+    if (selectedItems.length === 0) {
+      setError("Please select at least one item to proceed to checkout.");
+      return;
     }
+
+    const checkoutData = getCheckoutData(checkout);
+    if (
+      !checkoutData?.selectedCartItems?.length ||
+      !checkoutData.totals?.totalAmount
+    ) {
+      setError("Unable to prepare checkout data. Please try again.");
+      return;
+    }
+
+    const outOfStockItems = checkoutData.selectedCartItems.filter(
+      (item: any) => !item.product?.isInStock,
+    );
+    if (outOfStockItems.length > 0) {
+      setError(
+        `Out of stock: ${outOfStockItems.map((item: any) => item.product?.name).join(", ")}`,
+      );
+      return;
+    }
+
+    const validatedItems = checkoutData.selectedCartItems
+      .map((item: any) => {
+        if (
+          !item.productId ||
+          !item.product?._id ||
+          !item.product.finalPrice ||
+          item.quantity <= 0
+        ) {
+          setError(`Invalid data for ${item.product?.name || "product"}`);
+          return null;
+        }
+        return {
+          _id: item._id, // Use existing _id if available
+          productId: item.productId,
+          quantity: item.quantity,
+          itemTotal: item.itemTotal,
+          addedAt: item.addedAt || new Date().toISOString(),
+          selectedVariant: item.selectedVariant,
+          product: {
+            _id: item.product._id,
+            name: item.product.name || "",
+            finalPrice: item.product.finalPrice,
+            originalPrice: item.product.originalPrice,
+            discountPercent: item.product.discountPercent,
+            mainImage: item.product.mainImage,
+            inStockQuantity: item.product.inStockQuantity || 0,
+            isInStock: item.product.isInStock || false,
+          },
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    if (validatedItems.length === 0) return;
+
+    checkoutStore.setCheckoutData({
+      selectedItems: checkoutData.selectedItems,
+      insuranceEnabled: checkoutData.insuranceEnabled,
+      selectedAddressId: "",
+      selectedPaymentMethod: "",
+      totals: checkoutData.totals,
+      selectedCartItems: validatedItems,
+      appliedCoupon: null,
+    });
+
+    navigate.push("/checkout");
+  };
+
+  // Action handlers
+  const handleUpdateQuantity = async (productId: string, quantity: number) => {
+    await updateQuantityMutation.mutateAsync({ productId, quantity });
   };
 
   const handleRemoveFromCart = async (productId: string) => {
-    try {
-      await updateQuantityMutation.mutateAsync({ productId, quantity: 0 });
-    } catch {
-      setError('Failed to remove item');
-    }
+    await updateQuantityMutation.mutateAsync({ productId, quantity: 0 });
   };
 
   const handleClearCart = async () => {
-    try {
-      await clearCartMutation.mutateAsync();
-    } catch {
-      setError('Failed to clear cart');
-    }
+    await clearCartMutation.mutateAsync();
   };
 
-  const handleSelectAll = () => {
-    const allItemIds = cart?.items.map(item => item.productId) || [];
-    selectAllItems(allItemIds);
-  };
+  const handleSelectAll = () =>
+    selectAllItems(cart?.items.map((item: any) => item.productId) || []);
 
   const handleMoveToWishlist = async (productId: string) => {
-    try {
-      // Check if already in wishlist
-      const isAlreadyInWishlist = wishlistHelpers.isWishlisted(productId);
-      
-      if (isAlreadyInWishlist) {
-        // Remove from wishlist
-        await removeFromWishlistMutation.mutateAsync(productId);
-      } else {
-        // Add to wishlist WITHOUT removing from cart
-        await addToWishlistMutation.mutateAsync(productId);
-      }
-    } catch (error: any) {
-      // Error toasts are already handled by the mutations
-      console.error('Wishlist toggle error:', error);
+    const isAlreadyInWishlist = wishlistHelpers.isWishlisted(productId);
+    if (isAlreadyInWishlist) {
+      await removeFromWishlistMutation.mutateAsync(productId);
+    } else {
+      await addToWishlistMutation.mutateAsync(productId);
     }
   };
 
-  const handleToggleInsurance = (productId: string) => {
+  const handleToggleInsurance = (productId: string) =>
     toggleInsurance(productId, cart?.items || []);
-  };
-
-
-  const { handleCheckout } = useCartCheckout(cart, (error) => {
-    if (error) toast.error(error);
-  });
 
   // Get updating items as Set
-  const updatingItems = new Set(
+  const updatingItems = new Set<string>(
     cart?.items
-      .map(item => item.productId)
-      .filter(id => isUpdating(id)) || []
+      .map((item: any) => item.productId)
+      .filter((id: string) => isUpdating(id)) || [],
   );
 
-  // Combined loading state - show ONE loader
-  if (authLoading || loading) {
-    return <CartSkeleton />;
-  }
-
-  // Auth check
-  if (!authLoading && !user?.id) {
+  // Empty state
+  if (!loading && (!cart || cart.items.length === 0)) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419] flex items-center justify-center p-4">
-        <div className="text-center bg-white dark:bg-gray-900 p-8 sm:p-10 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 w-full max-w-md">
-          <div className="w-16 h-16 bg-black dark:bg-white rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShoppingBag className="w-8 h-8 text-white dark:text-black" />
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-8 text-base">
-            Please sign in to view your cart and manage your items.
-          </p>
-          <button
-            onClick={() => navigate.push('/auth/signin?returnUrl=/cart')}
-            className="w-full bg-black dark:bg-white text-white dark:text-black px-6 py-3 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors rounded-sm"
-          >
-            Sign In
-          </button>
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            Don't have an account?{' '}
-            <button
-              onClick={() => navigate.push('/auth/signup?returnUrl=/cart')}
-              className="text-black dark:text-white font-medium hover:underline"
-            >
-              Create account
-            </button>
-          </p>
-        </div>
-      </div>
+      <AuthGuard
+        redirectTo="/auth/signin?returnUrl=/cart"
+        message="Please sign in to view your cart"
+        icon={ShoppingBag}
+      >
+        <EmptyState
+          icon={ShoppingBag}
+          title="Your cart is empty"
+          description="Add items to your cart to get started with your purchase."
+          actionLabel="Start Shopping"
+          actionHref="/products"
+        />
+      </AuthGuard>
     );
   }
 
-  const isEmpty = !cart || cart.items.length === 0;
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419]">
-      <div className="mx-auto px-4 py-4 max-w-7xl">
-        <CartHeader
-          totalQuantity={cart?.totalQuantity || 0}
-          isEmpty={isEmpty}
-          loading={loading}
-          error={error}
-          selectedCount={checkout.selectedItems.size}
-          totalItems={cart?.items?.length || 0}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={deselectAllItems}
-          onClearCart={handleClearCart}
-          onClearError={() => setError(null)}
-        />
+    <AuthGuard
+      redirectTo="/auth/signin?returnUrl=/cart"
+      message="Please sign in to view your cart"
+      icon={ShoppingBag}
+    >
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419]">
+        <div className="mx-auto px-4 py-4 max-w-7xl">
+          {loading ? (
+            <LoadingSkeleton type="page" />
+          ) : (
+            <>
+              <CartHeader
+                totalQuantity={cart?.totalQuantity || 0}
+                isEmpty={false}
+                loading={loading}
+                error={error}
+                selectedCount={checkout.selectedItems.size}
+                totalItems={cart?.items?.length || 0}
+                onSelectAll={handleSelectAll}
+                onDeselectAll={deselectAllItems}
+                onClearCart={handleClearCart}
+                onClearError={() => setError(null)}
+              />
 
-        {isEmpty ? (
-          <EmptyCart />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            <CartItemsList
-              items={cart.items}
-              isItemSelected={isItemSelected}
-              hasInsurance={hasInsurance}
-              isInWishlist={(productId: string) => wishlistHelpers.isWishlisted(productId)}
-              updatingItems={updatingItems}
-              onToggleSelection={toggleItemSelection}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemove={handleRemoveFromCart}
-              onMoveToWishlist={handleMoveToWishlist}
-              onToggleInsurance={handleToggleInsurance}
-            />
-
-            <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-14" ref={priceCardRef}>
-                <PriceSummaryCard
-                  mode="cart"
-                  onCheckout={handleCheckout}
-                  loading={checkingOut}
-                  showItemDetails={true}
-                  showTrustSignals={true}
-                  showContinueShopping={true}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                <CartItemsList
+                  items={cart?.items || []}
+                  isItemSelected={isItemSelected}
+                  hasInsurance={hasInsurance}
+                  isInWishlist={(productId: string) =>
+                    wishlistHelpers.isWishlisted(productId)
+                  }
+                  updatingItems={updatingItems}
+                  onToggleSelection={toggleItemSelection}
+                  onUpdateQuantity={handleUpdateQuantity}
+                  onRemove={handleRemoveFromCart}
+                  onMoveToWishlist={handleMoveToWishlist}
+                  onToggleInsurance={handleToggleInsurance}
                 />
-              </div>
-            </div>
-          </div>
-        )}
 
-        {!isEmpty && (
-          <FixedCheckoutBar
-            show={showFixedCheckout}
-            selectedCount={checkout.selectedItems.size}
-            totalAmount={checkout?.totals?.totalAmount || 0}
-            onCheckout={handleCheckout}
-            disabled={checkout.selectedItems.size === 0}
-            loading={checkingOut}
-          />
-        )}
+                <div className="lg:col-span-1">
+                  <div className="lg:sticky lg:top-14" ref={priceCardRef}>
+                    <PriceSummaryCard
+                      mode="cart"
+                      cart={cart || null}
+                      cartLoading={loading}
+                      selectedItems={getSelectedCartItems(
+                        checkout.selectedItems,
+                      )}
+                      totals={checkout.totals}
+                      onCheckout={handleCheckout}
+                      loading={false}
+                      showItemDetails={true}
+                      showTrustSignals={true}
+                      showContinueShopping={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <FixedCheckoutBar
+                show={showFixedCheckout}
+                selectedCount={checkout.selectedItems.size}
+                totalAmount={checkout?.totals?.totalAmount || 0}
+                onCheckout={handleCheckout}
+                disabled={checkout.selectedItems.size === 0}
+                loading={false}
+              />
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 };
 

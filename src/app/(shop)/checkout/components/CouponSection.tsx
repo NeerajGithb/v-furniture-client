@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Tag, X, Loader2, Check } from 'lucide-react';
+import { useState } from "react";
+import { Tag, X, Loader2, Check } from "lucide-react";
 
 interface CouponSectionProps {
   appliedCoupon: { code: string; discount: number } | null;
@@ -20,7 +20,7 @@ export const CouponSection = ({
   isApplying,
   error,
 }: CouponSectionProps) => {
-  const [couponCode, setCouponCode] = useState('');
+  const [couponCode, setCouponCode] = useState("");
   const [showInput, setShowInput] = useState(false);
 
   const handleApply = async () => {
@@ -31,14 +31,14 @@ export const CouponSection = ({
   const handleRemove = () => {
     onClearError();
     onRemoveCoupon();
-    setCouponCode('');
+    setCouponCode("");
     setShowInput(false);
   };
 
   const handleCancel = () => {
     onClearError();
     setShowInput(false);
-    setCouponCode('');
+    setCouponCode("");
   };
 
   const handleInputChange = (value: string) => {
@@ -56,7 +56,8 @@ export const CouponSection = ({
             <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                {appliedCoupon.code} • -₹{appliedCoupon.discount.toLocaleString()}
+                {appliedCoupon.code} • -₹
+                {appliedCoupon.discount.toLocaleString()}
               </p>
             </div>
           </div>
@@ -95,7 +96,7 @@ export const CouponSection = ({
           placeholder="COUPON CODE"
           className="flex-1 px-3 py-2 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-600 focus:border-gray-900 dark:focus:border-gray-600"
           disabled={isApplying}
-          onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+          onKeyDown={(e) => e.key === "Enter" && handleApply()}
           autoFocus
         />
         <button
@@ -106,7 +107,7 @@ export const CouponSection = ({
           {isApplying ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            'Apply'
+            "Apply"
           )}
         </button>
         <button
@@ -118,7 +119,9 @@ export const CouponSection = ({
         </button>
       </div>
       {displayError && (
-        <p className="text-xs text-red-600 dark:text-red-400 px-1">{displayError}</p>
+        <p className="text-xs text-red-600 dark:text-red-400 px-1">
+          {displayError}
+        </p>
       )}
     </div>
   );

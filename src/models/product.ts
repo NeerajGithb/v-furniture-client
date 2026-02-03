@@ -7,6 +7,7 @@ export interface IProduct extends Document {
   subCategoryId: Schema.Types.ObjectId;
   itemId: string;
   sku?: string;
+  sellerId?: Schema.Types.ObjectId;
 
   originalPrice: number;
   finalPrice: number;
@@ -28,6 +29,7 @@ export interface IProduct extends Document {
 
   isPublished?: boolean;
   isActive?: boolean;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
   ratings?: number;
 
   reviews?: {
@@ -66,6 +68,7 @@ export interface IProduct extends Document {
   totalSold?: number;
   viewCount?: number;
   wishlistCount?: number;
+  totalCart?: number;
 
   brand?: string;
   warranty?: string;
@@ -106,6 +109,10 @@ const ProductSchema = new Schema<IProduct>(
 
     itemId: { type: String, required: true, unique: true },
     sku: { type: String, unique: true, sparse: true },
+    sellerId: {
+      type: Schema.Types.ObjectId,
+      ref: "Seller",
+    },
 
     originalPrice: { type: Number, required: true },
     finalPrice: { type: Number, required: true },
@@ -130,7 +137,8 @@ const ProductSchema = new Schema<IProduct>(
 
     isPublished: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
-    ratings: { type: Number, min: 0, max: 5, default: 0 },
+    status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED"], default: "PENDING" },
+    ratings: { type: Number, default: 0 },
 
     reviews: {
       average: { type: Number, default: 0 },
@@ -176,6 +184,7 @@ const ProductSchema = new Schema<IProduct>(
     totalSold: { type: Number, default: 0 },
     viewCount: { type: Number, default: 0 },
     wishlistCount: { type: Number, default: 0 },
+    totalCart: { type: Number, default: 0 },
 
     brand: String,
     warranty: String,
@@ -220,6 +229,7 @@ ProductSchema.index({ isPublished: 1, viewCount: -1 });
 // Relations
 ProductSchema.index({ categoryId: 1, isPublished: 1 });
 ProductSchema.index({ subCategoryId: 1, isPublished: 1 });
+ProductSchema.index({ sellerId: 1, isPublished: 1 });
 
 // Price sorting
 ProductSchema.index({ isPublished: 1, finalPrice: 1 });

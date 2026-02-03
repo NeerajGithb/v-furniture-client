@@ -47,14 +47,54 @@ export const createOrderPayload = (
     appliedCoupon: { code: string; discount: number } | null;
   },
   selectedCartItems: CheckoutItem[],
-) => {
-  return {
+): {
+  addressId: string;
+  paymentMethod: PaymentMethodEnum | "";
+  selectedItems: string[];
+  insuranceEnabled: string[];
+  cartData: Array<{
+    productId: string;
+    quantity: number;
+    price: number;
+    originalPrice?: number;
+    name: string;
+    sku?: string;
+    itemId?: string;
+    selectedVariant?: any;
+    productImage?: string;
+    discount?: number;
+    discountPercent?: number;
+  }>;
+  couponCode?: string;
+} => {
+  // Transform CartItem[] to the format expected by backend
+  const transformedCartData = selectedCartItems.map((item) => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    price: item.product.finalPrice,
+    originalPrice: item.product.originalPrice,
+    name: item.product.name,
+    sku: item.selectedVariant?.sku,
+    itemId: item._id,
+    selectedVariant: item.selectedVariant,
+    productImage: item.product.mainImage?.url,
+    discount: item.product.originalPrice && item.product.finalPrice 
+      ? item.product.originalPrice - item.product.finalPrice 
+      : undefined,
+    discountPercent: item.product.discountPercent,
+  }));
+
+  const payload: any = {
     addressId: checkoutData.selectedAddressId,
     paymentMethod: checkoutData.selectedPaymentMethod,
     selectedItems: checkoutData.selectedItems,
     insuranceEnabled: checkoutData.insuranceEnabled,
-    totals: checkoutData.totals,
-    cartData: selectedCartItems,
-    couponCode: checkoutData.appliedCoupon?.code || null,
+    cartData: transformedCartData,
   };
+
+  if (checkoutData.appliedCoupon?.code) {
+    payload.couponCode = checkoutData.appliedCoupon.code;
+  }
+
+  return payload;
 };

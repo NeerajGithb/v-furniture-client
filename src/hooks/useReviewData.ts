@@ -1,352 +1,229 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { handleApiResponse, fetchWithCredentialsSimple } from "@/utils/fetchWithCredentials";
-import useReviewStore from "@/stores/reviewStore";
+import { toast } from "react-hot-toast";
+import { reviewService } from "@/services/reviewService";
+import {
+  Review,
+  ReviewFilters,
+  CreateReviewData,
+  UpdateReviewData,
+  ReviewFormData,
+} from "@/types/review";
 
-export interface Review {
-  _id: string;
-  productId: string;
-  userId: string;
-  rating: number;
-  title?: string;
-  comment: string;
-  images: { url: string; publicId: string }[];
-  helpfulVotes: number;
-  unhelpfulVotes: number;
-  userVote: "helpful" | "unhelpful" | null;
-  isVerifiedPurchase: boolean;
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    _id: string;
-    name: string;
-    photoURL?: string;
-  };
-}
-
-export interface ReviewStats {
-  totalReviews: number;
-  averageRating: number;
-  breakdown: { [key: number]: number };
-}
-
-const defaultStats: ReviewStats = {
-  totalReviews: 0,
-  averageRating: 0,
-  breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-};
-
-const parseErrorResponse = async (response: Response): Promise<string> => {
-  try {
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const errorData = await handleApiResponse(response);
-      return (
-        errorData.error || errorData.message || "An unexpected error occurred"
-      );
-    }
-    const text = await response.text();
-    return text || `Request failed with status ${response.status}`;
-  } catch {
-    return `Request failed with status ${response.status}`;
-  }
-};
-
-const safeJsonParse = async (response: Response) => {
-  try {
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      return await handleApiResponse(response);
-    }
-    return { message: "Operation completed successfully" };
-  } catch {
-    return { message: "Operation completed successfully" };
-  }
-};
-
+// Public hook - reviews can be viewed by anyone
 export const useReviews = (productId: string, rating?: string) => {
+  const filters: ReviewFilters = {
+    productId,
+    page: 1,
+    limit: 10,
+    ...(rating && rating !== "all" && { rating }),
+  };
+
   return useQuery({
     queryKey: ["reviews", productId, rating],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        productId,
-        page: "1",
-        limit: "10",
-        ...(rating && rating !== "all" && { rating }),
-      });
-
-      // 🔥 Use fetchWithCredentialsSimple for public API (reading reviews)
-      const response = await fetchWithCredentialsSimple(`/api/reviews?${params}`);
-
-      if (!response.ok) {
-        const errorMessage = await parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-
-      const data = await safeJsonParse(response);
-      return {
-        reviews: data.reviews || [],
-        stats: data.statistics || defaultStats,
-        hasMore: data.pagination?.hasMore || false,
-        userHasReviewed: data.userHasReviewed || false,
-      };
-    },
+    queryFn: () => reviewService.getReviews(filters),
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     enabled: !!productId,
   });
 };
 
-export const useSubmitReview = () => {
+// Private hooks - require user authentication
+export const useCreateReview = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
-  const { formData, resetForm, setShowReviewForm } = useReviewStore();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       productId,
+      formData,
       userId,
     }: {
       productId: string;
-      userId: string;
+      formData: ReviewFormData;
+      userId?: string;
     }) => {
-      if (!userId) throw new Error("Please log in to submit a review");
-      if (!formData.rating || formData.rating === 0) {
-        throw new Error("Please select a rating");
-      }
-      if (!formData.comment.trim()) {
-        throw new Error("Please provide a review comment");
-      }
-      if (formData.comment.trim().length < 10) {
-        throw new Error("Review comment must be at least 10 characters long");
+      if (!userId) {
+        throw new Error("Please log in to submit a review");
       }
 
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          productId,
-          rating: formData.rating,
-          title: formData.title.trim() || undefined,
-          comment: formData.comment.trim(),
-          images: formData.images,
-        }),
-      });
+      const reviewData: CreateReviewData = {
+        productId,
+        rating: formData.rating,
+        title: formData.title.trim() || undefined,
+        comment: formData.comment.trim(),
+        images: formData.images,
+      };
 
-      if (!response.ok) {
-        const errorMessage = await parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-
-      return await safeJsonParse(response);
+      return reviewService.createReview(reviewData);
     },
     onSuccess: (_, variables) => {
+      if (!enabled) return;
       queryClient.invalidateQueries({
         queryKey: ["reviews", variables.productId],
       });
-      setShowReviewForm(false);
-      resetForm();
+      toast.success("Review submitted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create review");
     },
   });
 };
 
-export const useUploadReviewImages = () => {
-  const { formData, setFormData } = useReviewStore();
+export const useUpdateReview = (enabled: boolean = true) => {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (files: FileList | File[]) => {
-      if (!files || files.length === 0) {
-        throw new Error("No files selected");
+    mutationFn: ({
+      reviewId,
+      productId,
+      formData,
+      userId,
+    }: {
+      reviewId: string;
+      productId: string;
+      formData: ReviewFormData;
+      userId?: string;
+    }) => {
+      if (!userId) {
+        throw new Error("Please log in to update your review");
       }
 
-      const uploadPromises = Array.from(files).map(
-        (file) =>
-          new Promise<{ url: string; publicId: string }>((resolve, reject) => {
-            const validTypes = [
-              "image/jpeg",
-              "image/png",
-              "image/gif",
-              "image/webp",
-            ];
-            if (!validTypes.includes(file.type)) {
-              reject(
-                new Error(
-                  `Invalid file type: ${file.type}. Please use JPG, PNG, GIF, or WebP.`,
-                ),
-              );
-              return;
-            }
+      const reviewData: UpdateReviewData = {
+        productId, // Required by migrated API
+        rating: formData.rating,
+        title: formData.title.trim() || undefined,
+        comment: formData.comment.trim(),
+        images: formData.images,
+      };
 
-            const maxSize = 5 * 1024 * 1024;
-            if (file.size > maxSize) {
-              reject(
-                new Error(
-                  `File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum size is 5MB.`,
-                ),
-              );
-              return;
-            }
-
-            const reader = new FileReader();
-
-            reader.onload = async (e) => {
-              try {
-                const response = await fetch("/api/upload", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                  },
-                  credentials: "include",
-                  body: JSON.stringify({
-                    image: e.target?.result,
-                    folder: "reviews",
-                  }),
-                });
-
-                if (!response.ok) {
-                  const errorMessage = await parseErrorResponse(response);
-                  reject(new Error(errorMessage));
-                  return;
-                }
-
-                const data = await safeJsonParse(response);
-                if (!data.url || !data.publicId) {
-                  reject(new Error("Invalid upload response"));
-                  return;
-                }
-                resolve({ url: data.url, publicId: data.publicId });
-              } catch (error) {
-                reject(error);
-              }
-            };
-
-            reader.onerror = () =>
-              reject(new Error(`Failed to read file: ${file.name}`));
-            reader.readAsDataURL(file);
-          }),
-      );
-
-      return await Promise.all(uploadPromises);
+      return reviewService.updateReview(reviewId, reviewData);
     },
-    onSuccess: (uploadedImages) => {
-      setFormData({
-        images: [...formData.images, ...uploadedImages],
+    onSuccess: (_, variables) => {
+      if (!enabled) return;
+      queryClient.invalidateQueries({
+        queryKey: ["reviews", variables.productId],
       });
+      toast.success("Review updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update review");
     },
   });
 };
 
-export const useVoteReview = () => {
+export const useUploadReviewImages = (enabled: boolean = true) => {
+  return useMutation({
+    mutationFn: (files: FileList | File[]) =>
+      reviewService.uploadReviewImages(files),
+    onSuccess: () => {
+      if (!enabled) return;
+      toast.success("Images uploaded successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to upload images");
+    },
+  });
+};
+
+export const useUploadReviewImagesWithProgress = (enabled: boolean = true) => {
+  return useMutation({
+    mutationFn: ({
+      files,
+      onProgress,
+    }: {
+      files: FileList | File[];
+      onProgress?: (progress: number) => void;
+    }) => reviewService.uploadReviewImagesWithProgress(files, onProgress),
+    onSuccess: () => {
+      if (!enabled) return;
+      toast.success("Images uploaded successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to upload images");
+    },
+  });
+};
+
+export const useVoteReview = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
-  const { currentUserId } = useReviewStore();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       reviewId,
       isHelpful = true,
     }: {
       reviewId: string;
       isHelpful?: boolean;
     }) => {
-      if (!currentUserId) {
-        throw new Error("Please log in to vote on reviews");
-      }
-
       const action = isHelpful ? "helpful" : "unhelpful";
-
-      const response = await fetch("/api/reviews/vote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          reviewId,
-          action,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorMessage = await parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-
-      return await safeJsonParse(response);
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["reviews"] });
-    },
-  });
-};
-
-export const useDeleteReview = () => {
-  const queryClient = useQueryClient();
-  const { currentUserId } = useReviewStore();
-
-  return useMutation({
-    mutationFn: async (reviewId: string) => {
-      if (!currentUserId) {
-        throw new Error("Please log in to delete reviews");
-      }
-
-      const response = await fetch(`/api/reviews/${reviewId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorMessage = await parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-
-      return await safeJsonParse(response);
+      return reviewService.voteReview({ reviewId, action });
     },
     onSuccess: () => {
+      if (!enabled) return;
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      toast.success("Vote recorded");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to record vote");
     },
   });
 };
 
-export const useReportReview = () => {
-  const { currentUserId } = useReviewStore();
+export const useDeleteReview = (enabled: boolean = true) => {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (reviewId: string) => {
-      if (!currentUserId) {
-        throw new Error("Please log in to report reviews");
-      }
-
-      const response = await fetch("/api/reviews/report", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ reviewId }),
-      });
-
-      if (!response.ok) {
-        const errorMessage = await parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-
-      return await safeJsonParse(response);
+    mutationFn: (reviewId: string) => reviewService.deleteReview(reviewId),
+    onSuccess: () => {
+      if (!enabled) return;
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      toast.success("Review deleted successfully");
     },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete review");
+    },
+  });
+};
+
+export const useReportReview = (enabled: boolean = true) => {
+  return useMutation({
+    mutationFn: (reviewId: string) => reviewService.reportReview(reviewId),
+    onSuccess: () => {
+      if (!enabled) return;
+      toast.success("Review reported successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to report review");
+    },
+  });
+};
+
+// Re-enabled hooks with proper implementations
+export const useUserReview = (productId: string, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ["user-review", productId],
+    queryFn: () => reviewService.getUserReview(productId),
+    enabled: enabled && !!productId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+export const useCanUserReview = (
+  productId: string,
+  enabled: boolean = true,
+) => {
+  return useQuery({
+    queryKey: ["can-review", productId],
+    queryFn: () => reviewService.canUserReview(productId),
+    enabled: enabled && !!productId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
 export const useReviewHelpers = (currentUserId: string | null) => {
   return {
-    canUserVote: (review: Review) => !!currentUserId,
+    canUserVote: () => !!currentUserId,
     isUserReview: (review: Review) =>
       !!currentUserId && review.user?._id === currentUserId,
   };

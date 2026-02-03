@@ -1,8 +1,8 @@
 // Search analytics and user action tracking
-import { SearchAnalytics } from './types';
-import { getCached, setCache } from '@/lib/cache';
-import SearchAnalyticsModel from '@/models/SearchAnalytics';
-import { connectDB } from '@/lib/dbConnect';
+import { SearchAnalytics } from "./types";
+import { getCached, setCache } from "@/lib/cache";
+import SearchAnalyticsModel from "@/models/SearchAnalytics";
+import { connectDB } from "@/lib/dbConnect";
 
 export class SearchAnalyticsService {
   // Track search action
@@ -20,7 +20,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'search',
+      action: "search",
       metadata: {
         resultsCount: data.resultsCount,
         searchTime: data.searchTime,
@@ -46,7 +46,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'click',
+      action: "click",
       productId: data.productId,
       position: data.position,
     };
@@ -68,7 +68,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'view_product' as const,
+      action: "view_product" as const,
       productId: data.productId,
       position: data.position,
     };
@@ -90,7 +90,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'add_to_cart',
+      action: "add_to_cart",
       productId: data.productId,
       position: data.position,
       metadata: {
@@ -115,7 +115,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'add_to_wishlist' as const,
+      action: "add_to_wishlist" as const,
       productId: data.productId,
       position: data.position,
     };
@@ -138,7 +138,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'purchase',
+      action: "purchase",
       productId: data.productId,
       position: data.position,
       metadata: {
@@ -163,7 +163,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'filter_applied' as const,
+      action: "filter_applied" as const,
       metadata: {
         filters: data.filters,
       },
@@ -184,7 +184,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'sort_changed' as const,
+      action: "sort_changed" as const,
       metadata: {
         sortBy: data.sortBy,
       },
@@ -205,7 +205,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'page_changed' as const,
+      action: "page_changed" as const,
       metadata: {
         page: data.page,
       },
@@ -226,7 +226,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'no_results' as const,
+      action: "no_results" as const,
       metadata: {
         filters: data.filters,
       },
@@ -248,7 +248,7 @@ export class SearchAnalyticsService {
       userId: data.userId,
       sessionId: data.sessionId,
       timestamp: Date.now(),
-      action: 'zero_click' as const,
+      action: "zero_click" as const,
       metadata: {
         resultsCount: data.resultsCount,
         timeSpent: data.timeSpent,
@@ -259,120 +259,119 @@ export class SearchAnalyticsService {
   }
 
   // Store analytics data in MongoDB
-  private static async storeAnalytics(analytics: SearchAnalytics): Promise<void> {
+  private static async storeAnalytics(
+    analytics: SearchAnalytics,
+  ): Promise<void> {
     try {
-      await connectDB();
       
+
       // Store in MongoDB permanently
       await SearchAnalyticsModel.create(analytics);
-      
+
       // Also cache for quick access (optional)
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       const batchKey = `analytics:batch:${today}`;
-      const existingBatch = await getCached<SearchAnalytics[]>(batchKey) || [];
+      const existingBatch =
+        (await getCached<SearchAnalytics[]>(batchKey)) || [];
       existingBatch.push(analytics);
       await setCache(batchKey, existingBatch, 24 * 60 * 60);
-      
-    } catch (error) {
-      console.error('Failed to store analytics:', error);
-    }
+    } catch (error) {}
   }
 
   // Update search frequency for trending calculations
   private static async updateSearchFrequency(query: string): Promise<void> {
     try {
       const key = `search:frequency:${query.toLowerCase()}`;
-      const current = await getCached<number>(key) || 0;
+      const current = (await getCached<number>(key)) || 0;
       await setCache(key, current + 1, 7 * 24 * 60 * 60); // 7 days
-    } catch (error) {
-      console.error('Failed to update search frequency:', error);
-    }
+    } catch (error) {}
   }
 
   // Update click-through rate
-  private static async updateClickThroughRate(query: string, productId: string): Promise<void> {
+  private static async updateClickThroughRate(
+    query: string,
+    productId: string,
+  ): Promise<void> {
     try {
       const key = `ctr:${query.toLowerCase()}:${productId}`;
-      const current = await getCached<number>(key) || 0;
+      const current = (await getCached<number>(key)) || 0;
       await setCache(key, current + 1, 7 * 24 * 60 * 60); // 7 days
-    } catch (error) {
-      console.error('Failed to update CTR:', error);
-    }
+    } catch (error) {}
   }
 
   // Update conversion rate
-  private static async updateConversionRate(query: string, productId: string): Promise<void> {
+  private static async updateConversionRate(
+    query: string,
+    productId: string,
+  ): Promise<void> {
     try {
       const key = `conversion:${query.toLowerCase()}:${productId}`;
-      const current = await getCached<number>(key) || 0;
+      const current = (await getCached<number>(key)) || 0;
       await setCache(key, current + 1, 7 * 24 * 60 * 60); // 7 days
-    } catch (error) {
-      console.error('Failed to update conversion rate:', error);
-    }
+    } catch (error) {}
   }
 
   // Update purchase rate
-  private static async updatePurchaseRate(query: string, productId: string): Promise<void> {
+  private static async updatePurchaseRate(
+    query: string,
+    productId: string,
+  ): Promise<void> {
     try {
       const key = `purchase:${query.toLowerCase()}:${productId}`;
-      const current = await getCached<number>(key) || 0;
+      const current = (await getCached<number>(key)) || 0;
       await setCache(key, current + 1, 7 * 24 * 60 * 60); // 7 days
-    } catch (error) {
-      console.error('Failed to update purchase rate:', error);
-    }
+    } catch (error) {}
   }
 
   // Get trending searches based on frequency from MongoDB
   static async getTrendingSearches(limit: number = 10): Promise<string[]> {
     try {
       // Check cache first
-      const cached = await getCached<string[]>('trending:searches');
+      const cached = await getCached<string[]>("trending:searches");
       if (cached) {
         return cached.slice(0, limit);
       }
+
       
-      await connectDB();
-      
+
       // Get trending from last 7 days
-      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
       const trending = await SearchAnalyticsModel.aggregate([
         {
           $match: {
-            action: 'search',
-            timestamp: { $gte: sevenDaysAgo }
-          }
+            action: "search",
+            timestamp: { $gte: sevenDaysAgo },
+          },
         },
         {
           $group: {
-            _id: '$query',
-            count: { $sum: 1 }
-          }
+            _id: "$query",
+            count: { $sum: 1 },
+          },
         },
         {
-          $sort: { count: -1 }
+          $sort: { count: -1 },
         },
         {
-          $limit: limit
-        }
+          $limit: limit,
+        },
       ]);
-      
-      const trendingQueries = trending.map(t => t._id);
-      
+
+      const trendingQueries = trending.map((t) => t._id);
+
       // Cache for 1 hour
-      await setCache('trending:searches', trendingQueries, 60 * 60);
-      
+      await setCache("trending:searches", trendingQueries, 60 * 60);
+
       return trendingQueries;
-      
     } catch (error) {
-      console.error('Failed to get trending searches:', error);
       // Fallback to defaults
       return [
-        'sofa set',
-        'dining table',
-        'office chair',
-        'bed frame',
-        'wardrobe'
+        "sofa set",
+        "dining table",
+        "office chair",
+        "bed frame",
+        "wardrobe",
       ].slice(0, limit);
     }
   }
@@ -385,63 +384,63 @@ export class SearchAnalyticsService {
     avgPosition: number;
   }> {
     try {
-      await connectDB();
       
+
       const normalizedQuery = query.toLowerCase();
-      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
       // Get search count
       const searchCount = await SearchAnalyticsModel.countDocuments({
         query: normalizedQuery,
-        action: 'search',
-        timestamp: { $gte: thirtyDaysAgo }
+        action: "search",
+        timestamp: { $gte: thirtyDaysAgo },
       });
-      
+
       // Get click count
       const clickCount = await SearchAnalyticsModel.countDocuments({
         query: normalizedQuery,
-        action: 'click',
-        timestamp: { $gte: thirtyDaysAgo }
+        action: "click",
+        timestamp: { $gte: thirtyDaysAgo },
       });
-      
+
       // Get conversion count (add to cart)
       const conversionCount = await SearchAnalyticsModel.countDocuments({
         query: normalizedQuery,
-        action: 'add_to_cart',
-        timestamp: { $gte: thirtyDaysAgo }
+        action: "add_to_cart",
+        timestamp: { $gte: thirtyDaysAgo },
       });
-      
+
       // Get average position of clicks
       const avgPositionResult = await SearchAnalyticsModel.aggregate([
         {
           $match: {
             query: normalizedQuery,
-            action: 'click',
+            action: "click",
             timestamp: { $gte: thirtyDaysAgo },
-            position: { $exists: true }
-          }
+            position: { $exists: true },
+          },
         },
         {
           $group: {
             _id: null,
-            avgPosition: { $avg: '$position' }
-          }
-        }
+            avgPosition: { $avg: "$position" },
+          },
+        },
       ]);
-      
+
       const clickThroughRate = searchCount > 0 ? clickCount / searchCount : 0;
-      const conversionRate = searchCount > 0 ? conversionCount / searchCount : 0;
-      const avgPosition = avgPositionResult.length > 0 ? avgPositionResult[0].avgPosition : 0;
-      
+      const conversionRate =
+        searchCount > 0 ? conversionCount / searchCount : 0;
+      const avgPosition =
+        avgPositionResult.length > 0 ? avgPositionResult[0].avgPosition : 0;
+
       return {
         searchCount,
         clickThroughRate,
         conversionRate,
         avgPosition,
       };
-      
     } catch (error) {
-      console.error('Failed to get search metrics:', error);
       return {
         searchCount: 0,
         clickThroughRate: 0,
@@ -454,42 +453,37 @@ export class SearchAnalyticsService {
   // Process analytics batch - refresh trending searches cache
   static async processAnalyticsBatch(): Promise<void> {
     try {
-      await connectDB();
       
+
       // Refresh trending searches cache
-      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
       const trending = await SearchAnalyticsModel.aggregate([
         {
           $match: {
-            action: 'search',
-            timestamp: { $gte: sevenDaysAgo }
-          }
+            action: "search",
+            timestamp: { $gte: sevenDaysAgo },
+          },
         },
         {
           $group: {
-            _id: '$query',
-            count: { $sum: 1 }
-          }
+            _id: "$query",
+            count: { $sum: 1 },
+          },
         },
         {
-          $sort: { count: -1 }
+          $sort: { count: -1 },
         },
         {
-          $limit: 20
-        }
+          $limit: 20,
+        },
       ]);
-      
-      const trendingQueries = trending.map(t => t._id);
-      await setCache('trending:searches', trendingQueries, 24 * 60 * 60);
-      
-      console.log(`Processed analytics batch: ${trending.length} trending searches updated`);
-      
-    } catch (error) {
-      console.error('Failed to process analytics batch:', error);
-    }
+
+      const trendingQueries = trending.map((t) => t._id);
+      await setCache("trending:searches", trendingQueries, 24 * 60 * 60);
+    } catch (error) {}
   }
-  
+
   // Get analytics summary for admin dashboard
   static async getAnalyticsSummary(days: number = 7): Promise<{
     totalSearches: number;
@@ -501,64 +495,65 @@ export class SearchAnalyticsService {
     topQueries: Array<{ query: string; count: number }>;
   }> {
     try {
-      await connectDB();
       
-      const startTime = Date.now() - (days * 24 * 60 * 60 * 1000);
-      
+
+      const startTime = Date.now() - days * 24 * 60 * 60 * 1000;
+
       // Total searches
       const totalSearches = await SearchAnalyticsModel.countDocuments({
-        action: 'search',
-        timestamp: { $gte: startTime }
+        action: "search",
+        timestamp: { $gte: startTime },
       });
-      
+
       // Unique queries
-      const uniqueQueries = await SearchAnalyticsModel.distinct('query', {
-        action: 'search',
-        timestamp: { $gte: startTime }
+      const uniqueQueries = await SearchAnalyticsModel.distinct("query", {
+        action: "search",
+        timestamp: { $gte: startTime },
       });
-      
+
       // Total clicks
       const totalClicks = await SearchAnalyticsModel.countDocuments({
-        action: 'click',
-        timestamp: { $gte: startTime }
+        action: "click",
+        timestamp: { $gte: startTime },
       });
-      
+
       // Total conversions
       const totalConversions = await SearchAnalyticsModel.countDocuments({
-        action: 'add_to_cart',
-        timestamp: { $gte: startTime }
+        action: "add_to_cart",
+        timestamp: { $gte: startTime },
       });
-      
+
       // Top queries
       const topQueriesData = await SearchAnalyticsModel.aggregate([
         {
           $match: {
-            action: 'search',
-            timestamp: { $gte: startTime }
-          }
+            action: "search",
+            timestamp: { $gte: startTime },
+          },
         },
         {
           $group: {
-            _id: '$query',
-            count: { $sum: 1 }
-          }
+            _id: "$query",
+            count: { $sum: 1 },
+          },
         },
         {
-          $sort: { count: -1 }
+          $sort: { count: -1 },
         },
         {
-          $limit: 10
-        }
+          $limit: 10,
+        },
       ]);
-      
-      const topQueries = topQueriesData.map(q => ({
+
+      const topQueries = topQueriesData.map((q) => ({
         query: q._id,
-        count: q.count
+        count: q.count,
       }));
-      
+
       const avgCTR = totalSearches > 0 ? totalClicks / totalSearches : 0;
-      const avgConversionRate = totalSearches > 0 ? totalConversions / totalSearches : 0;
-      
+      const avgConversionRate =
+        totalSearches > 0 ? totalConversions / totalSearches : 0;
+
       return {
         totalSearches,
         uniqueQueries: uniqueQueries.length,
@@ -568,9 +563,7 @@ export class SearchAnalyticsService {
         avgConversionRate,
         topQueries,
       };
-      
     } catch (error) {
-      console.error('Failed to get analytics summary:', error);
       return {
         totalSearches: 0,
         uniqueQueries: 0,

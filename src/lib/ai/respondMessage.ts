@@ -12,8 +12,6 @@ import {
 
 const KEY = process.env.GROQ_API_KEY_RESPOND;
 const MODEL = process.env.GROQ_MODEL_RESPOND;
-const LOG = "[Respond]";
-
 type Confidence = "high" | "medium" | "low";
 type Sentiment = "positive" | "neutral" | "negative";
 
@@ -31,30 +29,23 @@ export async function respondMessage(
   data: any,
   history: any[] = [],
   currentProduct: any = null,
-  action?: string
+  action?: string,
 ): Promise<{ finalResponse: string; structuredData?: any }> {
-  const startTime = Date.now();
-
-  console.log(
-    `\n${LOG} 🎯 Intent: ${understanding.coarse_intent}, Action: ${action}`
-  );
-
   const contextBuilt = buildContext(
     data,
     currentProduct,
     understanding,
-    action
+    action,
   );
 
   // Check for quick responses first (no Groq needed)
   const quickResp = getQuickResponse(
     action || "",
     currentProduct,
-    contextBuilt.source
+    contextBuilt.source,
   );
 
   if (quickResp) {
-    console.log(`${LOG} ⚡ Quick response - no Groq`);
     return {
       finalResponse: quickResp,
       structuredData:
@@ -66,7 +57,6 @@ export async function respondMessage(
 
   // Handle CLARIFY without Groq
   if (action === "clarify") {
-    console.log(`${LOG} ⚡ Clarification - no Groq`);
     return { finalResponse: getClarificationResponse() };
   }
 
@@ -74,7 +64,6 @@ export async function respondMessage(
   if (understanding.coarse_intent === "SOCIAL" && !currentProduct) {
     const lowerMsg = message.toLowerCase();
     if (lowerMsg.match(/^(hi|hey|hello|sup|yo|greetings)($|\s|!|\?)/i)) {
-      console.log(`${LOG} ⚡ Greeting - no Groq`);
       return { finalResponse: getGreetingResponse() };
     }
   }
@@ -85,7 +74,6 @@ export async function respondMessage(
     !currentProduct &&
     contextBuilt.count === 0
   ) {
-    console.log(`${LOG} ⚡ Help - no Groq`);
     return { finalResponse: getHelpResponse() };
   }
 
@@ -99,7 +87,6 @@ export async function respondMessage(
       data.category?.toLowerCase() ||
       data.subcategory?.toLowerCase() ||
       "items";
-    console.log(`${LOG} ⚡ Browsing - no Groq`);
     return {
       finalResponse: getBrowsingResponse(contextBuilt.count, categoryName),
     };
@@ -107,13 +94,10 @@ export async function respondMessage(
 
   // Handle no results without Groq
   if (contextBuilt.count === 0 && contextBuilt.source !== "NONE") {
-    console.log(`${LOG} ⚡ No results - no Groq`);
     return { finalResponse: getNoResultsResponse() };
   }
 
   // Needs Groq for complex responses
-  console.log(`${LOG} 🤖 Calling Groq for complex response`);
-
   const dynamicConfig = getDynamicConfig(understanding, contextBuilt, action);
   const intentForPrompt = understanding.coarse_intent;
   const systemPrompt = buildRespondPrompt(
@@ -128,39 +112,32 @@ export async function respondMessage(
       detail_level: understanding.detail_level,
       info_entity: understanding.info_entity,
       whatUserWants: understanding.whatUserWants,
-    }
+    },
   );
 
   const messages = buildMessages(
     systemPrompt,
     message,
     history,
-    understanding.coarse_intent
+    understanding.coarse_intent,
   );
 
   try {
-    const callStartTime = Date.now();
     const response = await callGroq(
       messages,
       {
         temperature: dynamicConfig.temperature,
         max_tokens: dynamicConfig.maxTokens,
       },
-      { apiKey: KEY!, model: MODEL! }
+      { apiKey: KEY!, model: MODEL! },
     );
 
-    const apiDuration = Date.now() - callStartTime;
     const finalResponse = postProcess(
       response,
       contextBuilt,
       understanding.info_type,
       action,
-      currentProduct
-    );
-
-    const totalDuration = Date.now() - startTime;
-    console.log(
-      `${LOG} ✅ Success - ${totalDuration}ms (API: ${apiDuration}ms)`
+      currentProduct,
     );
 
     return {
@@ -171,7 +148,6 @@ export async function respondMessage(
           : undefined,
     };
   } catch (error: any) {
-    console.error(`${LOG} ❌ ${error.message}`);
     return {
       finalResponse: getFallback(understanding, contextBuilt, currentProduct),
     };
@@ -182,7 +158,7 @@ function buildContext(
   data: any,
   currentProduct: any,
   understanding: UnderstandingResult,
-  action?: string
+  action?: string,
 ): ContextResult {
   const productActions = [
     "product_question",
@@ -524,7 +500,7 @@ function buildMessages(
   systemPrompt: string,
   message: string,
   history: any[],
-  intent: string
+  intent: string,
 ): any[] {
   const messages: any[] = [{ role: "system", content: systemPrompt }];
 
@@ -535,13 +511,13 @@ function buildMessages(
       (item: any) =>
         (item.role === "user" || item.role === "assistant") &&
         item.content &&
-        item.content.trim()
+        item.content.trim(),
     );
     messages.push(
       ...filteredHistory.map((item: any) => ({
         role: item.role,
         content: item.content,
-      }))
+      })),
     );
   }
 
@@ -552,7 +528,7 @@ function buildMessages(
 function getDynamicConfig(
   understanding: UnderstandingResult,
   context: ContextResult,
-  action?: string
+  action?: string,
 ): { temperature: number; maxTokens: number } {
   const productDetailActions = [
     "view_product",
@@ -580,7 +556,7 @@ function getDynamicConfig(
       HELP: { temperature: 0.6, maxTokens: 250 },
     };
 
-  let config = configMap[understanding.coarse_intent] || {
+  const config = configMap[understanding.coarse_intent] || {
     temperature: 0.7,
     maxTokens: 250,
   };
@@ -621,10 +597,10 @@ function getSentiment(message: string): Sentiment {
   ];
 
   const positiveCount = positiveWords.filter((word) =>
-    lower.includes(word)
+    lower.includes(word),
   ).length;
   const negativeCount = negativeWords.filter((word) =>
-    lower.includes(word)
+    lower.includes(word),
   ).length;
 
   if (positiveCount > negativeCount) return "positive";
@@ -637,7 +613,7 @@ function postProcess(
   context: ContextResult,
   info_type?: string | null,
   action?: string,
-  currentProduct?: any
+  currentProduct?: any,
 ): string {
   let processed = response.trim();
 
@@ -646,8 +622,6 @@ function postProcess(
     .replace(/`([^`]+)`/g, "$1");
 
   if (!processed || processed.length < 5) {
-    console.warn(`${LOG} Empty response, generating fallback`);
-
     if (currentProduct && action === "product_question") {
       return `This is ${currentProduct.name}. What would you like to know about it?`;
     }
@@ -672,7 +646,7 @@ function postProcess(
 function getFallback(
   understanding: UnderstandingResult,
   context: ContextResult,
-  currentProduct?: any
+  currentProduct?: any,
 ): string {
   if (currentProduct) {
     return `I can help you with ${currentProduct.name}. What would you like to know? 🛋️`;

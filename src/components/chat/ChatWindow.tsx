@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send,
   Trash2,
@@ -10,28 +10,29 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-} from 'lucide-react';
-import { useChatStore } from '@/stores/chatStore';
-import MessageBubble from './MessageBubble';
-import { useVoice } from '@/lib/ai/voiceService';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from '../NavigationLoader';
+} from "lucide-react";
+import { useChatStore } from "@/stores/chatStore";
+import { useChatOperations } from "@/hooks/useChatData";
+import MessageBubble from "./MessageBubble";
+import { useVoice } from "@/lib/ai/voiceService";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "../NavigationLoader";
 
 const SUGGESTED_QUESTIONS = [
-  'Show sofas under ₹50,000',
-  'I need a king-size bed',
-  'Browse all categories',
-  'How many products are available?',
-  'Furniture for my bedroom',
+  "Show sofas under ₹50,000",
+  "I need a king-size bed",
+  "Browse all categories",
+  "How many products are available?",
+  "Furniture for my bedroom",
 ];
 
 export default function ChatWindow() {
   const navigate = useNavigate();
-  const { messages, isLoading, toggleChat, clearMessages, sendMessage } =
-    useChatStore();
+  const { messages, isLoading, toggleChat, clearMessages } = useChatStore();
+  const { sendMessage } = useChatOperations();
 
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
 
   /** 🔑 IMPORTANT: scroll container ref (NOT window) */
@@ -88,13 +89,13 @@ export default function ChatWindow() {
     const text = input.trim();
     if (!text || isLoading) return;
 
-    setInput('');
+    setInput("");
     await sendMessage(text, navigate);
   };
 
   const handleSuggestionClick = async (question: string) => {
     if (isLoading) return;
-    setInput('');
+    setInput("");
     await sendMessage(question, navigate);
   };
 
@@ -104,7 +105,7 @@ export default function ChatWindow() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -113,7 +114,7 @@ export default function ChatWindow() {
   return (
     <div
       className={`
-        ${expanded ? 'w-115' : 'w-95'}
+        ${expanded ? "w-115" : "w-95"}
         h-140
         bg-white dark:bg-[#0f1419]
         border border-gray-100 dark:border-gray-800
@@ -127,15 +128,19 @@ export default function ChatWindow() {
       {/* ================= HEADER ================= */}
       <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-[#fafafa] dark:bg-gray-900/50">
         <div>
-          <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100">VFurniture</h3>
-          <p className="text-[11px]" style={{ color: 'var(--brand-strong)' }}>● Online · Ready to help</p>
+          <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+            VFurniture
+          </h3>
+          <p className="text-[11px]" style={{ color: "var(--brand-strong)" }}>
+            ● Online · Ready to help
+          </p>
         </div>
 
         <div className="flex items-center gap-1">
           <button
             onClick={() => setExpanded(!expanded)}
             className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            style={{ color: 'var(--brand-strong)' }}
+            style={{ color: "var(--brand-strong)" }}
             aria-label={expanded ? "Minimize" : "Maximize"}
           >
             {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -145,7 +150,7 @@ export default function ChatWindow() {
             <button
               onClick={toggleVoice}
               className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              style={{ color: 'var(--brand-strong)' }}
+              style={{ color: "var(--brand-strong)" }}
               aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
             >
               {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -156,7 +161,7 @@ export default function ChatWindow() {
             <button
               onClick={clearMessages}
               className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              style={{ color: 'var(--brand-strong)' }}
+              style={{ color: "var(--brand-strong)" }}
               aria-label="Clear messages"
             >
               <Trash2 size={16} />
@@ -166,7 +171,7 @@ export default function ChatWindow() {
           <button
             onClick={toggleChat}
             className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            style={{ color: 'var(--brand-strong)' }}
+            style={{ color: "var(--brand-strong)" }}
             aria-label="Close chat"
           >
             <X size={16} />
@@ -195,14 +200,14 @@ export default function ChatWindow() {
                   onClick={() => handleSuggestionClick(q)}
                   className="px-4 py-2.5 text-left text-sm rounded-md border transition-all"
                   style={{
-                    borderColor: 'var(--brand-muted)',
-                    color: 'var(--brand-strong)'
+                    borderColor: "var(--brand-muted)",
+                    color: "var(--brand-strong)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-strong)';
+                    e.currentTarget.style.borderColor = "var(--brand-strong)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-muted)';
+                    e.currentTarget.style.borderColor = "var(--brand-muted)";
                   }}
                 >
                   {q}
@@ -217,11 +222,23 @@ export default function ChatWindow() {
             ))}
 
             {isLoading && (
-              <div className="mt-3 border rounded-md px-4 py-3 w-fit" style={{ borderColor: 'var(--brand-muted)' }}>
+              <div
+                className="mt-3 border rounded-md px-4 py-3 w-fit"
+                style={{ borderColor: "var(--brand-muted)" }}
+              >
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--brand)' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce delay-150" style={{ backgroundColor: 'var(--brand)' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce delay-300" style={{ backgroundColor: 'var(--brand)' }} />
+                  <span
+                    className="w-2 h-2 rounded-full animate-bounce"
+                    style={{ backgroundColor: "var(--brand)" }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full animate-bounce delay-150"
+                    style={{ backgroundColor: "var(--brand)" }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full animate-bounce delay-300"
+                    style={{ backgroundColor: "var(--brand)" }}
+                  />
                 </div>
               </div>
             )}
@@ -235,15 +252,24 @@ export default function ChatWindow() {
           <button
             className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
             aria-label="Upload file"
-            style={{ color: 'var(--brand-muted)' }}
+            style={{ color: "var(--brand-muted)" }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--brand-strong)';
+              e.currentTarget.style.color = "var(--brand-strong)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--brand-muted)';
+              e.currentTarget.style.color = "var(--brand-muted)";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
           </button>
@@ -262,12 +288,14 @@ export default function ChatWindow() {
             <button
               onClick={handleVoiceInput}
               className={`p-1 transition-colors shrink-0`}
-              style={{ color: isListening ? '#ef4444' : 'var(--brand-muted)' }}
+              style={{ color: isListening ? "#ef4444" : "var(--brand-muted)" }}
               onMouseEnter={(e) => {
-                if (!isListening) e.currentTarget.style.color = 'var(--brand-strong)';
+                if (!isListening)
+                  e.currentTarget.style.color = "var(--brand-strong)";
               }}
               onMouseLeave={(e) => {
-                if (!isListening) e.currentTarget.style.color = 'var(--brand-muted)';
+                if (!isListening)
+                  e.currentTarget.style.color = "var(--brand-muted)";
               }}
               aria-label="Voice input"
             >
@@ -279,15 +307,18 @@ export default function ChatWindow() {
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             className="p-1.5 rounded-md text-white transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed shrink-0"
-            style={{ backgroundColor: input.trim() && !isLoading ? 'var(--brand-strong)' : undefined }}
+            style={{
+              backgroundColor:
+                input.trim() && !isLoading ? "var(--brand-strong)" : undefined,
+            }}
             onMouseEnter={(e) => {
               if (input.trim() && !isLoading) {
-                e.currentTarget.style.backgroundColor = 'var(--brand-dark)';
+                e.currentTarget.style.backgroundColor = "var(--brand-dark)";
               }
             }}
             onMouseLeave={(e) => {
               if (input.trim() && !isLoading) {
-                e.currentTarget.style.backgroundColor = 'var(--brand-strong)';
+                e.currentTarget.style.backgroundColor = "var(--brand-strong)";
               }
             }}
             aria-label="Send message"

@@ -1,19 +1,23 @@
-export const runtime = 'nodejs';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+export const runtime = "nodejs";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
-const ACCESS_TOKEN_NAME = 'vf_access';
-const REFRESH_TOKEN_NAME = 'vf_refresh';
+const ACCESS_TOKEN_NAME = "vf_access";
+const REFRESH_TOKEN_NAME = "vf_refresh";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
-  throw new Error('Missing JWT secret(s)');
+  throw new Error("Missing JWT secret(s)");
 }
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production";
+
+// Password security constants
+const SALT_ROUNDS = 12; // High security salt rounds
 
 interface User {
   _id: { toString: () => string } | string;
@@ -27,39 +31,61 @@ interface TokenPayload {
   exp?: number;
 }
 
+// Password hashing functions
+export const hashPassword = async (password: string): Promise<string> => {
+  try {
+    return await bcrypt.hash(password, SALT_ROUNDS);
+  } catch (error) {
+    throw new Error("Failed to hash password");
+  }
+};
+
+export const verifyPassword = async (
+  password: string,
+  hashedPassword: string,
+): Promise<boolean> => {
+  try {
+    return await bcrypt.compare(password, hashedPassword);
+  } catch (error) {
+    throw new Error("Failed to verify password");
+  }
+};
+
 export const createAccessToken = (user: User): string =>
-  jwt.sign(
-    { userId: user._id.toString(), email: user.email },
-    JWT_SECRET!,
-    { expiresIn: '15m' }
-  );
+  jwt.sign({ userId: user._id.toString(), email: user.email }, JWT_SECRET!, {
+    expiresIn: "15m",
+  });
 
 export const createRefreshToken = (user: User): string =>
   jwt.sign(
     { userId: user._id.toString(), email: user.email },
     JWT_REFRESH_SECRET!,
-    { expiresIn: '30d' }
+    { expiresIn: "30d" },
   );
 
-export const verifyAccessToken = async (token: string): Promise<TokenPayload | null> => {
+export const verifyAccessToken = async (
+  token: string,
+): Promise<TokenPayload | null> => {
   try {
     return jwt.verify(token, JWT_SECRET!) as TokenPayload;
   } catch (error) {
-    console.error('Access token verification failed:', error);
     return null;
   }
 };
 
-export const verifyRefreshToken = async (token: string): Promise<TokenPayload | null> => {
+export const verifyRefreshToken = async (
+  token: string,
+): Promise<TokenPayload | null> => {
   try {
     return jwt.verify(token, JWT_REFRESH_SECRET!) as TokenPayload;
   } catch (error) {
-    console.error('Refresh token verification failed:', error);
     return null;
   }
 };
 
-export const getAccessTokenFromCookie = async (req?: NextRequest): Promise<string | null> => {
+export const getAccessTokenFromCookie = async (
+  req?: NextRequest,
+): Promise<string | null> => {
   try {
     if (req?.cookies) return req.cookies.get(ACCESS_TOKEN_NAME)?.value || null;
     const cookieStore = await cookies();
@@ -69,7 +95,9 @@ export const getAccessTokenFromCookie = async (req?: NextRequest): Promise<strin
   }
 };
 
-export const getRefreshTokenFromCookie = async (req?: NextRequest): Promise<string | null> => {
+export const getRefreshTokenFromCookie = async (
+  req?: NextRequest,
+): Promise<string | null> => {
   try {
     if (req?.cookies) return req.cookies.get(REFRESH_TOKEN_NAME)?.value || null;
     const cookieStore = await cookies();
@@ -79,20 +107,26 @@ export const getRefreshTokenFromCookie = async (req?: NextRequest): Promise<stri
   }
 };
 
-export const getCurrentUser = async (req?: NextRequest): Promise<TokenPayload | null> => {
+export const getCurrentUser = async (
+  req?: NextRequest,
+): Promise<TokenPayload | null> => {
   const accessToken = await getAccessTokenFromCookie(req);
   if (!accessToken) return null;
   return await verifyAccessToken(accessToken);
 };
 
-export const setAuthCookies = (response: NextResponse, accessToken: string, refreshToken: string): void => {
+export const setAuthCookies = (
+  response: NextResponse,
+  accessToken: string,
+  refreshToken: string,
+): void => {
   response.cookies.set({
     name: ACCESS_TOKEN_NAME,
     value: accessToken,
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: 60 * 15,
   });
 
@@ -101,8 +135,8 @@ export const setAuthCookies = (response: NextResponse, accessToken: string, refr
     value: refreshToken,
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
 };
@@ -110,21 +144,21 @@ export const setAuthCookies = (response: NextResponse, accessToken: string, refr
 export const clearAuthCookies = (response: NextResponse): void => {
   response.cookies.set({
     name: ACCESS_TOKEN_NAME,
-    value: '',
+    value: "",
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: 0,
   });
 
   response.cookies.set({
     name: REFRESH_TOKEN_NAME,
-    value: '',
+    value: "",
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: 0,
   });
 };

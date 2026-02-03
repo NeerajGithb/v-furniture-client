@@ -36,7 +36,7 @@ export const usePlaceholder = () => {
           setPhraseIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
         }
       },
-      isDeleting ? 40 : 100
+      isDeleting ? 40 : 100,
     );
 
     return () => clearTimeout(timeout);

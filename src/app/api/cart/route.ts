@@ -1,382 +1,98 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { withAuth, AuthenticatedUser } from "@/lib/middleware/auth";
-import Cart from "@/models/Cart";
-import Product from "@/models/product";
-import { connectDB } from "@/lib/dbConnect";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { cartService } from "@/lib/domain/cart/CartService";
 import {
-  getCached,
-  setCache,
-  invalidateCacheByPrefix,
-  deleteCache,
-  CACHE_TTL,
-} from "@/lib/cache";
+  AddToCartSchema,
+  UpdateCartSchema,
+  RemoveFromCartSchema,
+  CheckProductsSchema,
+} from "@/lib/domain/cart/CartSchemas";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
 
 export const GET = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const { searchParams } = new URL(request.url);
-      const checkProducts = searchParams.get("check");
-      
-      // If checking specific products, return only check results
-      if (checkProducts) {
-        const productIds = checkProducts.split(",").filter(Boolean);
-        
-        if (productIds.length === 0) {
-          return NextResponse.json(
-            { error: "Product IDs are required for check" },
-            { status: 400 },
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const { searchParams } = new URL(request.url);
+        const checkProducts = searchParams.get("check");
+
+        if (checkProducts) {
+          const productIds = checkProducts.split(",").filter(Boolean);
+
+          // Validate at route boundary
+          const validatedData = CheckProductsSchema.parse({ productIds });
+
+          const result = await cartService.checkProductsInCart(
+            user.userId,
+            validatedData,
           );
+          return ApiResponseBuilder.success(result);
         }
 
-        const sortedIds = [...productIds].sort().join(",");
-        const cacheKey = `cart:check:${user.userId}:${sortedIds}`;
-
-        const cached = await getCached<any>(cacheKey);
-        if (cached) {
-          return NextResponse.json(cached);
-        }
-
-        await connectDB();
-
-        const cart = await Cart.findOne({ userId: user.userId });
-        const cartProducts: string[] = [];
-
-        if (cart) {
-          for (const productId of productIds) {
-            const isInCart = cart.items.some(
-              (item: any) => item.productId.toString() === productId
-            );
-            if (isInCart) {
-              cartProducts.push(productId);
-            }
-          }
-        }
-
-        const responseData = { cartProducts };
-        await setCache(cacheKey, responseData, CACHE_TTL.CART);
-
-        return NextResponse.json(responseData);
-      }
-
-      // Regular cart fetch logic
-      const cacheKey = `cart:${user.userId}`;
-      const cached = await getCached<any>(cacheKey);
-
-      if (cached) {
-        return NextResponse.json(cached);
-      }
-
-      await connectDB();
-
-      let cart = await Cart.findOne({ userId: user.userId }).populate({
-        path: "items.productId",
-        select:
-          "name finalPrice originalPrice discountPercent mainImage inStockQuantity",
-      });
-
-      if (!cart) {
-        cart = await Cart.create({ userId: user.userId, items: [] });
-      }
-
-      let subtotal = 0;
-      const validItems = [];
-
-      for (const item of cart.items) {
-        if (item.productId) {
-          const product = item.productId as any;
-          const itemTotal = product.finalPrice * item.quantity;
-          subtotal += itemTotal;
-
-          validItems.push({
-            _id: item._id,
-            productId: item.productId._id,
-            quantity: item.quantity,
-            selectedVariant: item.selectedVariant,
-            addedAt: item.addedAt,
-            itemTotal,
-            product: {
-              _id: product._id,
-              name: product.name,
-              finalPrice: product.finalPrice,
-              originalPrice: product.originalPrice,
-              discountPercent: product.discountPercent,
-              mainImage: product.mainImage,
-              inStockQuantity: product.inStockQuantity,
-              isInStock: product.inStockQuantity > 0,
-            },
-          });
-        }
-      }
-
-      if (validItems.length !== cart.items.length) {
-        cart.items = cart.items.filter((item: any) => item.productId);
-        await cart.save();
-      }
-
-      const cartData = {
-        _id: cart._id,
-        items: validItems,
-        itemCount: validItems.length,
-        totalQuantity: validItems.reduce((sum, item) => sum + item.quantity, 0),
-        subtotal,
-        estimatedTotal: subtotal,
-        updatedAt: cart.updatedAt,
-      };
-
-      await setCache(cacheKey, cartData, CACHE_TTL.CART);
-
-      return NextResponse.json(cartData);
-    } catch (error) {
-      console.error("Cart GET error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch cart" },
-        { status: 500 },
-      );
-    }
-  },
+        const result = await cartService.getUserCart(user.userId);
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );
 
 export const POST = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const body = await request.json();
-      const { productId, quantity = 1, selectedVariant } = body;
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const body = await request.json();
 
-      if (!productId) {
-        return NextResponse.json(
-          { error: "Product ID is required" },
-          { status: 400 },
-        );
-      }
+        // Validate at route boundary
+        const validatedData = AddToCartSchema.parse(body);
 
-      if (quantity <= 0) {
-        return NextResponse.json(
-          { error: "Quantity must be greater than 0" },
-          { status: 400 },
-        );
-      }
-
-      await connectDB();
-
-      const product = await Product.findById(productId);
-      if (!product) {
-        return NextResponse.json(
-          { error: "Product not found" },
-          { status: 404 },
-        );
-      }
-
-      if (
-        product.inStockQuantity !== undefined &&
-        product.inStockQuantity < quantity
-      ) {
-        return NextResponse.json(
-          { error: "Insufficient stock" },
-          { status: 400 },
-        );
-      }
-
-      let cart = await Cart.findOne({ userId: user.userId });
-      if (!cart) {
-        cart = new Cart({ userId: user.userId, items: [] });
-      }
-
-      const existingItemIndex = cart.items.findIndex(
-        (item: any) => item.productId.toString() === productId,
-      );
-
-      if (existingItemIndex >= 0) {
-        const newQuantity = cart.items[existingItemIndex].quantity + quantity;
-
-        if (
-          product.inStockQuantity !== undefined &&
-          product.inStockQuantity < newQuantity
-        ) {
-          return NextResponse.json(
-            { error: "Cannot add more items. Insufficient stock" },
-            { status: 400 },
-          );
-        }
-
-        cart.items[existingItemIndex].quantity = newQuantity;
-      } else {
-        cart.items.push({
-          productId,
-          quantity,
-          selectedVariant,
-          addedAt: new Date(),
-        });
-      }
-
-      await cart.save();
-
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${user.userId}`),
-        deleteCache(`user:counts:${user.userId}`)
-      ]);
-
-      return NextResponse.json(
-        {
-          success: true,
-          message: "Item added to cart successfully",
-        },
-        { status: 200 },
-      );
-    } catch (error) {
-      console.error("Cart POST error:", error);
-      return NextResponse.json(
-        { error: "Failed to add item to cart" },
-        { status: 500 },
-      );
-    }
-  },
+        const result = await cartService.addToCart(user.userId, validatedData);
+        return ApiResponseBuilder.success(result, 201);
+      },
+    ),
+  ),
 );
 
 export const PATCH = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const body = await request.json();
-      const { productId, quantity } = body;
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const body = await request.json();
 
-      if (!productId || quantity === undefined) {
-        return NextResponse.json(
-          { error: "Product ID and quantity are required" },
-          { status: 400 },
+        // Validate at route boundary
+        const validatedData = UpdateCartSchema.parse(body);
+
+        const result = await cartService.updateCartItem(
+          user.userId,
+          validatedData,
         );
-      }
-
-      if (quantity < 0) {
-        return NextResponse.json(
-          { error: "Quantity cannot be negative" },
-          { status: 400 },
-        );
-      }
-
-      await connectDB();
-
-      const cart = await Cart.findOne({ userId: user.userId });
-      if (!cart) {
-        return NextResponse.json({ error: "Cart not found" }, { status: 404 });
-      }
-
-      if (quantity === 0) {
-        cart.items = cart.items.filter(
-          (item: any) => item.productId.toString() !== productId,
-        );
-      } else {
-        const product = await Product.findById(productId);
-        if (!product) {
-          return NextResponse.json(
-            { error: "Product not found" },
-            { status: 404 },
-          );
-        }
-
-        if (
-          product.inStockQuantity !== undefined &&
-          product.inStockQuantity < quantity
-        ) {
-          return NextResponse.json(
-            { error: "Insufficient stock" },
-            { status: 400 },
-          );
-        }
-
-        const itemIndex = cart.items.findIndex(
-          (item: any) => item.productId.toString() === productId,
-        );
-
-        if (itemIndex >= 0) {
-          cart.items[itemIndex].quantity = quantity;
-        } else {
-          return NextResponse.json(
-            { error: "Item not found in cart" },
-            { status: 404 },
-          );
-        }
-      }
-
-      await cart.save();
-
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${user.userId}`),
-        deleteCache(`user:counts:${user.userId}`)
-      ]);
-
-      return NextResponse.json(
-        {
-          success: true,
-          message: "Cart updated successfully",
-        },
-        { status: 200 },
-      );
-    } catch (error) {
-      console.error("Cart PATCH error:", error);
-      return NextResponse.json(
-        { error: "Failed to update cart" },
-        { status: 500 },
-      );
-    }
-  },
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );
 
 export const DELETE = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const { searchParams } = new URL(request.url);
-      const productId = searchParams.get("productId");
-      const clearAll = searchParams.get("clearAll") === "true";
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const { searchParams } = new URL(request.url);
+        const productId = searchParams.get("productId");
+        const clearAll = searchParams.get("clearAll") === "true";
 
-      await connectDB();
+        // Validate at route boundary
+        const validatedData = RemoveFromCartSchema.parse({
+          productId,
+          clearAll,
+        });
 
-      const cart = await Cart.findOne({ userId: user.userId });
-      if (!cart) {
-        return NextResponse.json({ error: "Cart not found" }, { status: 404 });
-      }
-
-      if (clearAll) {
-        cart.items = [];
-      } else if (productId) {
-        const initialLength = cart.items.length;
-        cart.items = cart.items.filter(
-          (item: any) => item.productId.toString() !== productId,
+        const result = await cartService.removeFromCart(
+          user.userId,
+          validatedData,
         );
-
-        if (cart.items.length === initialLength) {
-          return NextResponse.json(
-            { error: "Item not found in cart" },
-            { status: 404 },
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: "Product ID or clearAll parameter is required" },
-          { status: 400 },
-        );
-      }
-
-      await cart.save();
-
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${user.userId}`),
-        deleteCache(`user:counts:${user.userId}`)
-      ]);
-
-      return NextResponse.json(
-        {
-          success: true,
-          message: clearAll
-            ? "Cart cleared successfully"
-            : "Item removed successfully",
-        },
-        { status: 200 },
-      );
-    } catch (error) {
-      console.error("Cart DELETE error:", error);
-      return NextResponse.json(
-        { error: "Failed to delete from cart" },
-        { status: 500 },
-      );
-    }
-  },
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );

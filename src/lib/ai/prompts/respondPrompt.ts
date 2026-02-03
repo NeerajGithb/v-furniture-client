@@ -14,7 +14,7 @@ export function buildRespondPrompt(
   intent: string,
   context: string,
   action?: string,
-  enhancements?: Enhancements
+  enhancements?: Enhancements,
 ): string {
   const actionGuide = getActionGuide(action);
   const contextInstructions = getContextInstructions(context, enhancements);
@@ -149,7 +149,7 @@ function getActionGuide(action?: string): string {
 
 function getContextInstructions(
   context: string,
-  enhancements?: Enhancements
+  enhancements?: Enhancements,
 ): string {
   let instructions = "";
 
@@ -174,7 +174,7 @@ function getContextInstructions(
 }
 
 function getToneAdjustment(
-  sentiment?: "positive" | "neutral" | "negative"
+  sentiment?: "positive" | "neutral" | "negative",
 ): string {
   if (!sentiment || sentiment === "neutral") {
     return "\n═══ TONE ═══\nProfessional and helpful";

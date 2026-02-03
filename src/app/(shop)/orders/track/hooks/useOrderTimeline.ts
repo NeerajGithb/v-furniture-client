@@ -12,7 +12,11 @@ interface StatusStep {
   estimatedDate?: string;
 }
 
-export function useOrderTimeline(orderStatus?: OrderStatus, expectedDeliveryDate?: string, paymentStatus?: string) {
+export function useOrderTimeline(
+  orderStatus?: OrderStatus,
+  expectedDeliveryDate?: string,
+  paymentStatus?: string,
+) {
   const isOrderCompleted = useMemo(() => {
     return orderStatus === "delivered" && paymentStatus === "paid";
   }, [orderStatus, paymentStatus]);
@@ -78,7 +82,9 @@ export function useOrderTimeline(orderStatus?: OrderStatus, expectedDeliveryDate
         key: "delivered",
         label: isCustomerNotAvailable ? "Customer Not Available" : "Delivered",
         icon: CheckCircle,
-        description: isCustomerNotAvailable ? "Payment pending - Customer unavailable" : "Package delivered",
+        description: isCustomerNotAvailable
+          ? "Payment pending - Customer unavailable"
+          : "Package delivered",
       },
     ];
 
@@ -103,15 +109,23 @@ export function useOrderTimeline(orderStatus?: OrderStatus, expectedDeliveryDate
 
     return steps.map((step, idx) => ({
       ...step,
-      completed: step.key === "delivered" 
-        ? (idx <= currentIndex && !isCustomerNotAvailable)
-        : idx <= currentIndex,
+      completed:
+        step.key === "delivered"
+          ? idx <= currentIndex && !isCustomerNotAvailable
+          : idx <= currentIndex,
       active: idx === currentIndex && isOrderActive,
-      description: idx === currentIndex && isOverdue 
-        ? `${step.description} - Delayed` 
-        : step.description,
+      description:
+        idx === currentIndex && isOverdue
+          ? `${step.description} - Delayed`
+          : step.description,
     }));
-  }, [orderStatus, isOrderCancelled, isOrderActive, isOverdue, isCustomerNotAvailable]);
+  }, [
+    orderStatus,
+    isOrderCancelled,
+    isOrderActive,
+    isOverdue,
+    isCustomerNotAvailable,
+  ]);
 
   return {
     statusSteps,

@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuth } from "@/context/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { useOrder } from "@/hooks/useOrderData";
 import { useNavigate } from "@/components/NavigationLoader";
 import { useAuthStore } from "@/stores/authStore";
 
 export function useOrderTracking() {
-  const { user } = useCurrentUser();
-  const { authLoading } = useAuthStore();
+  const { user, authLoading } = useAuth();
   const navigate = useNavigate();
   const searchParams = useSearchParams();
   // Accept both trackingNumber and orderNumber for backward compatibility
-  const trackingNumber = searchParams?.get("trackingNumber") || searchParams?.get("orderNumber") || "";
+  const trackingNumber =
+    searchParams?.get("trackingNumber") ||
+    searchParams?.get("orderNumber") ||
+    "";
   const [copied, setCopied] = useState(false);
 
   const {
@@ -29,7 +31,6 @@ export function useOrderTracking() {
 
   useEffect(() => {
     if (!trackingNumber) {
-      console.error("No tracking number provided");
       return;
     }
   }, [trackingNumber]);
@@ -45,9 +46,7 @@ export function useOrderTracking() {
       await navigator.clipboard.writeText(order?.orderNumber || "");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-    }
+    } catch (error) {}
   };
 
   return {

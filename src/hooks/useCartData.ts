@@ -1,86 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchWithCredentials,
-  handleApiResponse,
-} from "@/utils/fetchWithCredentials";
 import { toast } from "react-hot-toast";
+import { cartService } from "@/services/cartService";
+import { Cart, AddToCartRequest, UpdateCartRequest } from "@/types/cart";
 import { useCartStore } from "@/stores/cartStore";
-import { useAuthStore } from "@/stores/authStore";
 import { useHomeStore } from "@/stores/homeStore";
 import { useEffect } from "react";
 
-export interface CartItem {
-  _id: string;
-  productId: string;
-  quantity: number;
-  selectedVariant?: {
-    color?: string;
-    size?: string;
-    sku?: string;
-  };
-  addedAt: string;
-  itemTotal: number;
-  product?: {
-    _id: string;
-    name: string;
-    finalPrice: number;
-    originalPrice?: number;
-    discountPercent?: number;
-    mainImage?: {
-      url: string;
-      alt?: string;
-    };
-    inStockQuantity: number;
-    isInStock: boolean;
-    category?: string;
-    brand?: string;
-  };
-}
-
-export interface Cart {
-  _id: string;
-  items: CartItem[];
-  itemCount: number;
-  totalQuantity: number;
-  subtotal: number;
-  estimatedTotal: number;
-  updatedAt: string;
-}
-
-export const useCart = () => {
+// Query hook - fetch cart (private - requires user)
+export const useCart = (enabled: boolean = true) => {
   const { setSelectedItems, calculateCheckoutTotals } = useCartStore();
-  const { isAuthenticated, authLoading } = useAuthStore();
   const { setCartProductIds } = useHomeStore();
 
   const query = useQuery({
     queryKey: ["cart"],
-    queryFn: async () => {
-      const response = await fetchWithCredentials("/api/cart");
-
-      if (!response.ok) {
-        if (response.status === 401) return null;
-        throw new Error(`Failed to fetch cart: ${response.status}`);
-      }
-
-      const cartData: Cart = await handleApiResponse(response);
-
-      if (!cartData || !Array.isArray(cartData.items)) {
-        return null;
-      }
-      
-      // Update homeStore with cart IDs for O(1) lookup
-      if (cartData.items) {
-        const cartIds = cartData.items.reduce((acc: Record<string, number>, item) => {
-          acc[item.productId] = item.quantity;
-          return acc;
-        }, {});
-        setCartProductIds(cartIds);
-      }
-      
-      console.log("🛒 [USE CART DATA] Fetched Cart Data:", cartData);
-      return cartData;
-    },
-    enabled: !authLoading && isAuthenticated, // 🔥 Wait for auth to load, then check if authenticated
+    queryFn: () => cartService.getCart(),
+    enabled: enabled,
     retry: false,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
@@ -88,48 +22,46 @@ export const useCart = () => {
 
   useEffect(() => {
     if (query.data?.items) {
+      // Update homeStore with cart IDs for O(1) lookup
+      const cartIds = query.data.items.reduce(
+        (acc: Record<string, number>, item) => {
+          acc[item.productId] = item.quantity;
+          return acc;
+        },
+        {},
+      );
+      setCartProductIds(cartIds);
+
+      // Set selected items for checkout
       const allItemIds = query.data.items.map((item) => item.productId);
       if (allItemIds.length > 0) {
         setSelectedItems(allItemIds);
         calculateCheckoutTotals(query.data.items);
       }
     }
-  }, [query.data, setSelectedItems, calculateCheckoutTotals]);
+  }, [
+    query.data,
+    setSelectedItems,
+    calculateCheckoutTotals,
+    setCartProductIds,
+  ]);
 
   return query;
 };
 
-export const useAddToCart = () => {
+// Mutation hook - add to cart (private - requires user)
+export const useAddToCart = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
   const { setUpdating } = useCartStore();
   const { cartProductIds, setCartProductIds } = useHomeStore();
 
   return useMutation({
-    mutationFn: async ({
-      productId,
-      quantity = 1,
-      selectedVariant = null,
-    }: {
-      productId: string;
-      quantity?: number;
-      selectedVariant?: any;
-    }) => {
-      const response = await fetchWithCredentials("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity, selectedVariant }),
-      });
-
-      if (!response.ok) {
-        const data = await handleApiResponse(response).catch(() => ({}));
-        throw new Error(data.error || `HTTP Error: ${response.status}`);
-      }
-
-      return handleApiResponse(response);
-    },
+    mutationFn: (data: AddToCartRequest) => cartService.addToCart(data),
     onMutate: async ({ productId, quantity = 1 }) => {
+      if (!enabled) return;
+
       setUpdating(productId, true);
-      
+
       // Update homeStore optimistically
       const currentQty = cartProductIds[productId] || 0;
       setCartProductIds({
@@ -138,13 +70,15 @@ export const useAddToCart = () => {
       });
     },
     onSuccess: () => {
+      if (!enabled) return;
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["user-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["cart-ids"] });
+      // Force refetch user counts immediately
+      queryClient.refetchQueries({ queryKey: ["user-counts"] });
       toast.success("Added to cart");
     },
     onError: (error: Error, { productId }) => {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to add to cart");
       setUpdating(productId, false);
     },
     onSettled: (_, __, { productId }) => {
@@ -153,35 +87,19 @@ export const useAddToCart = () => {
   });
 };
 
-export const useUpdateCartQuantity = () => {
+// Mutation hook - update cart quantity (private - requires user)
+export const useUpdateCartQuantity = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
   const { setUpdating } = useCartStore();
   const { cartProductIds, setCartProductIds } = useHomeStore();
 
   return useMutation({
-    mutationFn: async ({
-      productId,
-      quantity,
-    }: {
-      productId: string;
-      quantity: number;
-    }) => {
-      const response = await fetchWithCredentials("/api/cart", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity }),
-      });
-
-      if (!response.ok) {
-        const data = await handleApiResponse(response).catch(() => ({}));
-        throw new Error(data.error || `HTTP Error: ${response.status}`);
-      }
-
-      return handleApiResponse(response);
-    },
+    mutationFn: (data: UpdateCartRequest) => cartService.updateQuantity(data),
     onMutate: async ({ productId, quantity }) => {
+      if (!enabled) return;
+
       setUpdating(productId, true);
-      
+
       // Update homeStore optimistically
       if (quantity === 0) {
         const updated = { ...cartProductIds };
@@ -194,18 +112,20 @@ export const useUpdateCartQuantity = () => {
         });
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_, { quantity }) => {
+      if (!enabled) return;
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["user-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["cart-ids"] });
-      if (variables.quantity === 0) {
+      // Force refetch user counts immediately
+      queryClient.refetchQueries({ queryKey: ["user-counts"] });
+      if (quantity === 0) {
         toast.success("Item removed from cart");
       } else {
         toast.success("Cart updated");
       }
     },
     onError: (error: Error, { productId }) => {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to update cart");
       setUpdating(productId, false);
     },
     onSettled: (_, __, { productId }) => {
@@ -214,41 +134,70 @@ export const useUpdateCartQuantity = () => {
   });
 };
 
-export const useClearCart = () => {
+// Mutation hook - remove from cart (private - requires user)
+export const useRemoveFromCart = (enabled: boolean = true) => {
+  const queryClient = useQueryClient();
+  const { setUpdating } = useCartStore();
+  const { cartProductIds, setCartProductIds } = useHomeStore();
+
+  return useMutation({
+    mutationFn: (productId: string) => cartService.removeFromCart(productId),
+    onMutate: async (productId) => {
+      if (!enabled) return;
+
+      setUpdating(productId, true);
+
+      // Update homeStore optimistically
+      const updated = { ...cartProductIds };
+      delete updated[productId];
+      setCartProductIds(updated);
+    },
+    onSuccess: () => {
+      if (!enabled) return;
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      queryClient.invalidateQueries({ queryKey: ["user-counts"] });
+      // Force refetch user counts immediately
+      queryClient.refetchQueries({ queryKey: ["user-counts"] });
+      toast.success("Item removed from cart");
+    },
+    onError: (error: Error, productId) => {
+      toast.error(error.message || "Failed to remove item from cart");
+      setUpdating(productId, false);
+    },
+    onSettled: (_, __, productId) => {
+      setUpdating(productId, false);
+    },
+  });
+};
+
+// Mutation hook - clear cart (private - requires user)
+export const useClearCart = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
   const { resetCheckout } = useCartStore();
   const { setCartProductIds } = useHomeStore();
 
   return useMutation({
-    mutationFn: async () => {
-      const response = await fetchWithCredentials("/api/cart?clearAll=true", {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = await handleApiResponse(response).catch(() => ({}));
-        throw new Error(data.error || `HTTP Error: ${response.status}`);
-      }
-
-      return handleApiResponse(response);
-    },
+    mutationFn: () => cartService.clearCart(),
     onMutate: async () => {
-      // Clear homeStore optimistically
+      if (!enabled) return;
       setCartProductIds({});
     },
     onSuccess: () => {
+      if (!enabled) return;
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["user-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["cart-ids"] });
+      // Force refetch user counts immediately
+      queryClient.refetchQueries({ queryKey: ["user-counts"] });
       resetCheckout();
       toast.success("Cart cleared");
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to clear cart");
     },
   });
 };
 
+// Utility hooks
 export const useCartHelpers = (cart: Cart | null) => {
   return {
     isInCart: (productId: string) => {
@@ -280,7 +229,6 @@ export const useCartHelpers = (cart: Cart | null) => {
         return null;
       }
 
-      // Get only selected items from cart
       const selectedCartItems = cart.items.filter((item) =>
         checkout.selectedItems.has(item.productId),
       );
@@ -289,8 +237,19 @@ export const useCartHelpers = (cart: Cart | null) => {
         selectedItems: Array.from(checkout.selectedItems) as string[],
         insuranceEnabled: Array.from(checkout.insuranceEnabled) as string[],
         totals: checkout.totals,
-        selectedCartItems, // Only selected items, not all cart items
+        selectedCartItems,
       };
     },
   };
+};
+
+// Query hook - check products in cart (batch check)
+export const useCheckProductsInCart = (productIds: string[], enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ["cart-check", productIds],
+    queryFn: () => cartService.checkProductsInCart(productIds),
+    enabled: enabled && productIds.length > 0,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    gcTime: 2 * 60 * 1000, // 2 minutes
+  });
 };

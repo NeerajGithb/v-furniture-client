@@ -1,9 +1,8 @@
-
 interface LoadingProps {
   title?: string;
   message?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
-  variant?: 'default' | 'minimal' | 'elegant' | 'modern' | 'spinner';
+  size?: "sm" | "md" | "lg" | "xl";
+  variant?: "default" | "minimal" | "elegant" | "modern" | "spinner";
   fullScreen?: boolean;
   className?: string;
   showDots?: boolean;
@@ -12,40 +11,40 @@ interface LoadingProps {
 const Loading: React.FC<LoadingProps> = ({
   title,
   message,
-  size = 'md',
-  variant = 'minimal',
+  size = "md",
+  variant = "minimal",
   fullScreen = false,
-  className = '',
+  className = "",
   showDots = true,
 }) => {
   const sizeConfig = {
     sm: {
-      spinner: 'w-6 h-6',
-      title: 'text-sm',
-      message: 'text-xs',
-      container: 'p-4',
-      gap: 'gap-2',
+      spinner: "w-6 h-6",
+      title: "text-sm",
+      message: "text-xs",
+      container: "p-4",
+      gap: "gap-2",
     },
     md: {
-      spinner: 'w-8 h-8',
-      title: 'text-base',
-      message: 'text-sm',
-      container: 'p-6',
-      gap: 'gap-3',
+      spinner: "w-8 h-8",
+      title: "text-base",
+      message: "text-sm",
+      container: "p-6",
+      gap: "gap-3",
     },
     lg: {
-      spinner: 'w-12 h-12',
-      title: 'text-lg',
-      message: 'text-base',
-      container: 'p-8',
-      gap: 'gap-4',
+      spinner: "w-12 h-12",
+      title: "text-lg",
+      message: "text-base",
+      container: "p-8",
+      gap: "gap-4",
     },
     xl: {
-      spinner: 'w-16 h-16',
-      title: 'text-xl',
-      message: 'text-lg',
-      container: 'p-10',
-      gap: 'gap-6',
+      spinner: "w-16 h-16",
+      title: "text-xl",
+      message: "text-lg",
+      container: "p-10",
+      gap: "gap-6",
     },
   };
 
@@ -53,7 +52,7 @@ const Loading: React.FC<LoadingProps> = ({
 
   const PremiumSpinner = () => {
     switch (variant) {
-      case 'minimal':
+      case "minimal":
         return (
           <div className={`${config.spinner} relative`}>
             <div className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-gray-700"></div>
@@ -61,39 +60,42 @@ const Loading: React.FC<LoadingProps> = ({
           </div>
         );
 
-      case 'elegant':
+      case "elegant":
         return (
           <div className={`${config.spinner} relative`}>
-            <div className="absolute inset-0 rounded-full border-2 border-gray-100"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-gray-400 border-t-black animate-spin"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-gray-100 dark:border-gray-800"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-gray-400 dark:border-gray-500 border-t-black dark:border-t-white animate-spin"></div>
             <div
-              className="absolute inset-2 rounded-full border border-gray-200 border-b-transparent animate-spin"
-              style={{ animationDelay: '150ms', animationDirection: 'reverse' }}
+              className="absolute inset-2 rounded-full border border-gray-200 dark:border-gray-700 border-b-transparent animate-spin"
+              style={{ animationDelay: "150ms", animationDirection: "reverse" }}
             ></div>
           </div>
         );
 
-      case 'modern':
+      case "modern":
         return (
           <div className={`${config.spinner} relative`}>
-            <div className="absolute inset-0 rounded-full bg-gray-100 animate-pulse"></div>
-            <div className="absolute inset-1 rounded-full bg-white"></div>
-            <div className="absolute inset-2 rounded-full border-2 border-gray-300 border-t-black animate-spin"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full animate-ping"></div>
+            <div className="absolute inset-0 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse"></div>
+            <div className="absolute inset-1 rounded-full bg-white dark:bg-gray-900"></div>
+            <div className="absolute inset-2 rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-black dark:border-t-white animate-spin"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-black dark:bg-white rounded-full animate-ping"></div>
           </div>
         );
 
       default:
         return (
           <div className={`${config.spinner} relative`}>
-            <div className="absolute inset-0 rounded-full border-2 border-gray-200"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-black border-t-transparent animate-spin"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-gray-700"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-black dark:border-white border-t-transparent animate-spin"></div>
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse"></div>
             </div>
-            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '3s' }}>
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-gray-400 rounded-full"></div>
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-1 h-1 bg-gray-400 rounded-full"></div>
+            <div
+              className="absolute inset-0 animate-spin"
+              style={{ animationDuration: "3s" }}
+            >
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full"></div>
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full"></div>
             </div>
           </div>
         );
@@ -107,26 +109,34 @@ const Loading: React.FC<LoadingProps> = ({
       <PremiumSpinner />
 
       {title && (
-        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${config.title} tracking-tight`}>{title}</h3>
+        <h3
+          className={`font-semibold text-gray-900 dark:text-gray-100 ${config.title} tracking-tight`}
+        >
+          {title}
+        </h3>
       )}
 
       {message && (
-        <p className={`text-gray-600 dark:text-gray-400 ${config.message} max-w-sm leading-relaxed`}>{message}</p>
+        <p
+          className={`text-gray-600 dark:text-gray-400 ${config.message} max-w-sm leading-relaxed`}
+        >
+          {message}
+        </p>
       )}
 
       {showDots && (
         <div className="flex space-x-1 mt-2">
           <div
             className="w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
-            style={{ animationDelay: '0ms' }}
+            style={{ animationDelay: "0ms" }}
           ></div>
           <div
             className="w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
-            style={{ animationDelay: '150ms' }}
+            style={{ animationDelay: "150ms" }}
           ></div>
           <div
             className="w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
-            style={{ animationDelay: '300ms' }}
+            style={{ animationDelay: "300ms" }}
           ></div>
         </div>
       )}
@@ -135,7 +145,9 @@ const Loading: React.FC<LoadingProps> = ({
 
   if (fullScreen) {
     return (
-      <div className={`min-h-screen bg-white dark:bg-[#0f1419] flex items-center justify-center ${className}`}>
+      <div
+        className={`min-h-screen bg-white dark:bg-[#0f1419] flex items-center justify-center ${className}`}
+      >
         <div className="bg-white dark:bg-[#0f1419]">
           <LoadingContent />
         </div>
@@ -144,7 +156,9 @@ const Loading: React.FC<LoadingProps> = ({
   }
 
   return (
-    <div className={`w-full flex items-center justify-center bg-white dark:bg-[#0f1419] ${className}`}>
+    <div
+      className={`w-full flex items-center justify-center bg-white dark:bg-[#0f1419] ${className}`}
+    >
       <LoadingContent />
     </div>
   );

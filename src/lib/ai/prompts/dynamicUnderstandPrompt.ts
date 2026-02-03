@@ -280,7 +280,7 @@ These are SYSTEM ACTIONS and MUST be ACTION.
    IF NONE FIT CLEARLY → USE NEED_CLARIFICATION
    NEVER CREATE NEW VALUES LIKE: browse_sofa, find_product, open_it, viewProduct
 
-🧠 RULE #7: FINE_INTENT MAPPING RULES (FIXES 90% OF BUGS)
+🧠 RULE #7: FINE_INTENT MAPPING RULES (CRITICAL FOR ACCURACY)
    
    A) BROWSING vs VIEWING (THE MOST COMMON MISTAKE)
    ──────────────────────────────────────────────────
@@ -633,7 +633,7 @@ Now analyze this message and return ONLY valid JSON:`;
 }
 
 export function generateDynamicUnderstandPrompt(
-  context: PromptContext
+  context: PromptContext,
 ): string {
   const systemPrompt = buildSystemPrompt(context);
 

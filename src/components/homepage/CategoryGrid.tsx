@@ -1,22 +1,14 @@
-'use client';
+"use client";
 
-import { memo, useRef, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { NavLink } from '@/components/NavigationLoader';
-import PrevRight from '../ui/PrevRight';
-import PrevLeft from '../ui/PrevLeft';
-import { useCategories } from '@/hooks/useProductData';
-import { Category } from '@/types/Product';
+import { memo, useRef, useEffect, useState } from "react";
+import Image from "next/image";
+import { NavLink } from "@/components/NavigationLoader";
+import PrevRight from "../ui/PrevRight";
+import PrevLeft from "../ui/PrevLeft";
+import { Category } from "@/types/Product";
+import { CategoryGridProps } from "@/types/homepage";
 
-const CategoryGrid = () => {
-  /** ✅ REAL DATA COMES FROM REACT QUERY */
-  const {
-    data: categories = [],
-    isLoading: loading,
-    error,
-  } = useCategories();
-
+const CategoryGrid = ({ categories, loading, error }: CategoryGridProps) => {
   const showSkeletons =
     loading || (!loading && categories.length === 0 && !error);
 
@@ -32,11 +24,11 @@ const CategoryGrid = () => {
   };
 
   const handleScrollLeft = () => {
-    scrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' });
+    scrollRef.current?.scrollBy({ left: -200, behavior: "smooth" });
   };
 
   const handleScrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' });
+    scrollRef.current?.scrollBy({ left: 200, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -44,88 +36,73 @@ const CategoryGrid = () => {
     if (!container) return;
 
     updateScrollButtons();
-    container.addEventListener('scroll', updateScrollButtons);
-    window.addEventListener('resize', updateScrollButtons);
+    container.addEventListener("scroll", updateScrollButtons);
+    window.addEventListener("resize", updateScrollButtons);
 
     return () => {
-      container.removeEventListener('scroll', updateScrollButtons);
-      window.removeEventListener('resize', updateScrollButtons);
+      container.removeEventListener("scroll", updateScrollButtons);
+      window.removeEventListener("resize", updateScrollButtons);
     };
   }, []);
 
   if (error) {
     return (
-      <section className="px-4 max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl md:text-3xl font-light text-gray-900 mb-2 tracking-wide">
-            Popular Categories
+      <section className="px-3 max-w-7xl mx-auto">
+        <div className="mb-3">
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+            Categories
           </h2>
-          <p className="text-red-400 text-sm font-medium">
-            {(error as Error).message}
-          </p>
+          <p className="text-red-500 text-xs mt-1">{error.message}</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="px-4 max-w-7xl mx-auto">
-      <motion.div
-        className="text-center mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h2 className="text-2xl font-light text-gray-900 dark:text-gray-100 mb-3 tracking-wide">
-          POPULAR CATEGORIES
+    <section className="px-3 max-w-7xl mx-auto">
+      <div className="flex items-baseline justify-between mb-2">
+        <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+          Popular Categories
         </h2>
-        <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-gray-400 dark:via-gray-600 to-transparent mx-auto mb-2" />
-        <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base font-light">
-          Discover our curated collections
-        </p>
-      </motion.div>
+        <span className="text-xs text-gray-400 dark:text-gray-500">
+          {categories.length > 0
+            ? `${Math.min(categories.length, 12)} items`
+            : ""}
+        </span>
+      </div>
 
       {/* MOBILE */}
       <div className="block md:hidden relative">
-        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide">
+        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide -mx-1">
           <div
-            className="grid grid-rows-2 grid-flow-col gap-4 pb-4"
-            style={{ width: 'max-content' }}
+            className="grid grid-rows-2 grid-flow-col gap-2 pb-2 px-1"
+            style={{ width: "max-content" }}
           >
             {showSkeletons
               ? Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="animate-pulse shrink-0">
-                  <div className="w-28 h-28 bg-gray-100 dark:bg-gray-800" />
-                  <div className="h-2.5 bg-gray-200 dark:bg-gray-700 w-20 mx-auto mt-3 rounded-full" />
-                </div>
-              ))
-              : categories.slice(0, 12).map((category: Category, index: number) => (
-                <motion.div
-                  key={category._id}
-                  className="shrink-0 group"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.03 }}
-                >
-                  <NavLink
-                    href={`/${category.slug}`}
-                    className="block text-center"
-                  >
-                    <div className="relative w-28 h-28 mb-3 overflow-hidden bg-gray-50 dark:bg-gray-800 group-hover:bg-gray-100 dark:group-hover:bg-gray-700">
-                      <Image
-                        src={category.mainImage?.url || '/placeholder.png'}
-                        alt={category.mainImage?.alt || category.name}
-                        fill
-                        sizes="120px"
-                        className="object-cover"
-                      />
-                    </div>
-                    <h3 className="text-xs font-medium text-gray-800 dark:text-gray-200 w-28 truncate">
-                      {category.name}
-                    </h3>
-                  </NavLink>
-                </motion.div>
-              ))}
+                  <div key={i} className="animate-pulse shrink-0">
+                    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800/60" />
+                    <div className="h-2 bg-gray-100 dark:bg-gray-700/50 w-16 mt-1" />
+                  </div>
+                ))
+              : categories.slice(0, 12).map((category: Category) => (
+                  <div key={category._id} className="shrink-0 group">
+                    <NavLink href={`/${category.slug}`} className="block">
+                      <div className="relative w-24 h-24 overflow-hidden bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 transition-colors duration-150 group-hover:border-gray-300 dark:group-hover:border-gray-600">
+                        <Image
+                          src={category.mainImage?.url || "/placeholder.png"}
+                          alt={category.mainImage?.alt || category.name}
+                          fill
+                          sizes="96px"
+                          className="object-cover transition-transform duration-200 group-hover:scale-[1.01]"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 w-24 truncate mt-1 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors duration-150">
+                        {category.name}
+                      </p>
+                    </NavLink>
+                  </div>
+                ))}
           </div>
         </div>
 
@@ -134,40 +111,34 @@ const CategoryGrid = () => {
       </div>
 
       {/* DESKTOP */}
-      <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+      <div className="hidden md:grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
         {showSkeletons
           ? Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-square bg-gray-100 dark:bg-gray-800" />
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 w-3/4 mx-auto mt-4 rounded-full" />
-            </div>
-          ))
-          : categories.slice(0, 12).map((category: Category, index: number) => (
-            <motion.div
-              key={category._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-            >
+              <div key={i} className="animate-pulse">
+                <div className="aspect-square bg-gray-100 dark:bg-gray-800/60" />
+                <div className="h-2 bg-gray-100 dark:bg-gray-700/50 w-3/4 mt-1" />
+              </div>
+            ))
+          : categories.slice(0, 12).map((category: Category) => (
               <NavLink
+                key={category._id}
                 href={`/${category.slug}`}
-                className="block text-center group"
+                className="block group"
               >
-                <div className="relative aspect-square w-full overflow-hidden bg-gray-50 dark:bg-gray-800">
+                <div className="relative aspect-square w-full overflow-hidden bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 transition-colors duration-150 group-hover:border-gray-300 dark:group-hover:border-gray-600">
                   <Image
-                    src={category.mainImage?.url || '/placeholder.png'}
+                    src={category.mainImage?.url || "/placeholder.png"}
                     alt={category.mainImage?.alt || category.name}
                     fill
-                    sizes="(max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16vw"
-                    className="object-cover"
+                    sizes="(max-width: 768px) 25vw, (max-width: 1024px) 20vw, 16vw"
+                    className="object-cover transition-transform duration-200 group-hover:scale-[1.01]"
                   />
                 </div>
-                <h3 className="mt-4 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 truncate group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors duration-150">
                   {category.name}
-                </h3>
+                </p>
               </NavLink>
-            </motion.div>
-          ))}
+            ))}
       </div>
     </section>
   );

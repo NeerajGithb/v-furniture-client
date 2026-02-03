@@ -253,7 +253,7 @@ export function resolveCanonicalIntent(raw?: string | null): CanonicalIntent {
 
   // Direct match fallback
   const directMatch = Object.keys(INTENT_ALIASES).find(
-    (key) => normalize(key) === normalized
+    (key) => normalize(key) === normalized,
   );
 
   return (directMatch as CanonicalIntent) || "UNKNOWN";

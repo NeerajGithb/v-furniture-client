@@ -1,11 +1,7 @@
-// stores/chatStore.ts
+// stores/chatStore.ts - UI state only, no business logic
 
-import { executeChatAction } from "@/lib/ai/chatActionExecutor";
-import { navigationTracker } from "@/lib/ai/utils/navigationTracker";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-const LOG_PREFIX = "[ChatStore]";
 
 export type Message = {
   id: string;
@@ -27,12 +23,15 @@ export type Message = {
 };
 
 interface ChatStore {
+  // UI State
   isOpen: boolean;
   messages: Message[];
   isLoading: boolean;
   conversationId: string | null;
 
+  // UI Actions
   toggleChat: () => void;
+  setOpen: (open: boolean) => void;
   addMessage: (msg: {
     role: "user" | "assistant";
     content: string;
@@ -51,28 +50,36 @@ interface ChatStore {
   updateLastMessage: (updates: Partial<Message>) => void;
   setLoading: (loading: boolean) => void;
   clearMessages: () => void;
-  sendMessage: (text: string, router: any) => Promise<void>;
   markMessagesAsOld: () => void;
   revertLastMessage: () => void;
+  setConversationId: (id: string) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
   persist(
     (set, get) => ({
+      // Initial UI State
       isOpen: false,
       messages: [],
       isLoading: false,
       conversationId: crypto.randomUUID(),
 
+      // UI Actions
       toggleChat: () => {
         const newState = !get().isOpen;
-        console.log(`${LOG_PREFIX} Chat ${newState ? "opened" : "closed"}`);
 
         if (newState) {
           get().markMessagesAsOld();
         }
 
         set({ isOpen: newState });
+      },
+
+      setOpen: (open: boolean) => {
+        if (open) {
+          get().markMessagesAsOld();
+        }
+        set({ isOpen: open });
       },
 
       markMessagesAsOld: () => {
@@ -84,30 +91,18 @@ export const useChatStore = create<ChatStore>()(
       revertLastMessage: () => {
         const messages = get().messages;
         if (messages.length < 2) {
-          console.log(`${LOG_PREFIX} Cannot revert - not enough messages`);
           return;
         }
 
         const lastMessage = messages[messages.length - 1];
 
-        console.log(`${LOG_PREFIX} Reverting message:`, {
-          id: lastMessage.id,
-          role: lastMessage.role,
-          hadNavigation: !!lastMessage.navigationUrl,
-        });
-
+        // Handle navigation revert if needed
         if (lastMessage.navigationUrl && typeof window !== "undefined") {
-          console.log(
-            `${LOG_PREFIX} Navigating back from: ${lastMessage.navigationUrl}`,
-          );
           window.history.back();
         }
 
         const newMessages = messages.slice(0, -2);
         set({ messages: newMessages });
-        console.log(
-          `${LOG_PREFIX} Reverted - now ${newMessages.length} messages`,
-        );
       },
 
       updateLastMessage: (updates) => {
@@ -118,7 +113,6 @@ export const useChatStore = create<ChatStore>()(
           const lastIndex = messages.length - 1;
           messages[lastIndex] = { ...messages[lastIndex], ...updates };
 
-          console.log(`${LOG_PREFIX} Updated last message:`, updates);
           return { messages };
         });
       },
@@ -138,10 +132,10 @@ export const useChatStore = create<ChatStore>()(
         const cleanContent = content.trim();
 
         if (!cleanContent) {
-          console.warn(`${LOG_PREFIX} Empty message blocked`);
           return;
         }
 
+        // Prevent duplicate messages
         const now = Date.now();
         const isDuplicate = get().messages.some(
           (m) =>
@@ -151,12 +145,6 @@ export const useChatStore = create<ChatStore>()(
         );
 
         if (isDuplicate) {
-          console.warn(
-            `${LOG_PREFIX} Duplicate blocked: "${cleanContent.substring(
-              0,
-              50,
-            )}..."`,
-          );
           return;
         }
 
@@ -176,13 +164,9 @@ export const useChatStore = create<ChatStore>()(
           navigation: navigation || null,
         };
 
-        console.log(`${LOG_PREFIX} ✓ Added ${role} message:`, {
-          content: cleanContent.substring(0, 100),
-          isLoading,
-        });
-
         set((state) => ({ messages: [...state.messages, newMessage] }));
 
+        // Auto-mark assistant messages as old after 3 seconds
         if (role === "assistant" && !isLoading) {
           setTimeout(() => {
             set((state) => ({
@@ -195,245 +179,31 @@ export const useChatStore = create<ChatStore>()(
       },
 
       setLoading: (isLoading) => {
-        console.log(`${LOG_PREFIX} Loading: ${isLoading}`);
         set({ isLoading });
       },
 
       clearMessages: () => {
-        const count = get().messages.length;
-        console.log(`${LOG_PREFIX} Clearing ${count} messages`);
         set({ messages: [] });
       },
 
-      sendMessage: async (text: string, router: any) => {
-        const startTime = Date.now();
-        const trimmed = text.trim();
-
-        console.log(`\n${LOG_PREFIX} ========== NEW MESSAGE ==========`);
-        console.log(`${LOG_PREFIX} User input: "${trimmed}"`);
-
-        if (!trimmed) {
-          console.warn(`${LOG_PREFIX} Empty message - ignoring`);
-          return;
-        }
-
-        if (get().isLoading) {
-          console.warn(`${LOG_PREFIX} Already processing - ignoring`);
-          return;
-        }
-
-        const tempUserMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "user",
-          content: trimmed,
-          timestamp: new Date(),
-          isNew: false,
-        };
-
-        set((state) => ({
-          messages: [...state.messages, tempUserMessage],
-          isLoading: true,
-        }));
-
-        console.log(`${LOG_PREFIX} User message added, sending to API...`);
-
-        try {
-          const requestPayload = {
-            message: trimmed,
-            history: get().messages.slice(-11, -1),
-            conversationId: get().conversationId,
-          };
-
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestPayload),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const data = await response.json();
-
-          console.log(`\n${LOG_PREFIX} ========== API RESPONSE ==========`);
-          console.log(`${LOG_PREFIX} Action: ${data.decision?.action}`);
-          console.log(`${LOG_PREFIX} shouldNavigate: ${data.shouldNavigate}`);
-          console.log(
-            `${LOG_PREFIX} shouldRenderProducts: ${data.shouldRenderProducts}`,
-          );
-
-          const {
-            decision,
-            response: aiResponse,
-            products,
-            categories,
-            category,
-            subcategory,
-            productSlug,
-            productId,
-            shouldRenderProducts,
-            navigation,
-            structuredData,
-            isAuthenticated = false,
-          } = data;
-
-          set({ isLoading: false });
-
-          // RENDER PRODUCTS INLINE (No navigation)
-          if (shouldRenderProducts && products?.length > 0) {
-            console.log(
-              `${LOG_PREFIX} ✓ Rendering ${products.length} products inline`,
-            );
-
-            get().addMessage({
-              role: "assistant",
-              content: aiResponse,
-              products: products,
-              categories: categories,
-              shouldRenderProducts: true,
-              actionPerformed: decision.action,
-              navigationUrl: null,
-              structuredData: structuredData || null,
-              navigation: navigation || null,
-            });
-
-            const duration = Date.now() - startTime;
-            console.log(
-              `${LOG_PREFIX} ✓ Completed with inline products (${duration}ms)\n`,
-            );
-            return;
-          }
-
-          // ================= ACTION EXECUTION =================
-          if (decision?.action && decision.actionType !== "UNKNOWN") {
-            const actionResult = await executeChatAction(
-              decision.action,
-              {
-                productId,
-                productSlug,
-                category,
-                subcategory,
-                filters: decision.filters,
-                router,
-              },
-              isAuthenticated,
-              (loadingMsg) => {
-                // Show loading message with spinner
-                console.log(
-                  `${LOG_PREFIX} Showing loading message: "${loadingMsg}"`,
-                );
-                get().addMessage({
-                  role: "assistant",
-                  content: loadingMsg,
-                  actionPerformed: decision.action,
-                  navigationUrl: null,
-                  isLoading: true,
-                });
-              },
-            );
-
-            if (actionResult.requiresAuth) {
-              get().addMessage({
-                role: "assistant",
-                content: actionResult.message,
-                navigation: {
-                  type: "login_required",
-                  message: actionResult.message,
-                },
-              });
-              return;
-            }
-
-            if (!actionResult.success) {
-              get().addMessage({
-                role: "assistant",
-                content: actionResult.message,
-              });
-              return;
-            }
-
-            // If navigation happened, wait for actual page load then REPLACE message
-            if (actionResult.navigationUrl) {
-              console.log(
-                `${LOG_PREFIX} Waiting for navigation to: ${actionResult.navigationUrl}`,
-              );
-
-              navigationTracker.onNavigationComplete(
-                actionResult.navigationUrl,
-                () => {
-                  console.log(
-                    `${LOG_PREFIX} Navigation complete! Replacing with final message`,
-                  );
-                  get().updateLastMessage({
-                    content: aiResponse,
-                    actionPerformed: decision.action,
-                    navigationUrl: actionResult.navigationUrl ?? null,
-                    isLoading: false,
-                  });
-                },
-              );
-              return;
-            }
-
-            // No navigation - show final message immediately
-            get().addMessage({
-              role: "assistant",
-              content: aiResponse,
-              actionPerformed: decision.action,
-              navigationUrl: null,
-              shouldRenderProducts: false,
-              structuredData: structuredData || null,
-              navigation: navigation || null,
-            });
-
-            return;
-          }
-
-          // INFORMATION RESPONSE (No action needed)
-          console.log(`${LOG_PREFIX} ℹ️ Information response`);
-
-          get().addMessage({
-            role: "assistant",
-            content: aiResponse,
-            categories: categories,
-            shouldRenderProducts: false,
-            structuredData: structuredData || null,
-            navigation: navigation || null,
-          });
-
-          const duration = Date.now() - startTime;
-          console.log(`${LOG_PREFIX} ✓ Completed (${duration}ms)\n`);
-        } catch (error: any) {
-          const duration = Date.now() - startTime;
-          console.error(
-            `${LOG_PREFIX} ✗ Error: ${error.message} (${duration}ms)`,
-          );
-
-          set({ isLoading: false });
-          get().addMessage({
-            role: "assistant",
-            content: "Sorry, I encountered an error. Please try again. 😔",
-          });
-        }
+      setConversationId: (id: string) => {
+        set({ conversationId: id });
       },
     }),
     {
       name: "chat-storage",
       partialize: (state) => ({
-        messages: state.messages.slice(-50),
+        messages: state.messages.slice(-50), // Keep last 50 messages
+        conversationId: state.conversationId,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
 
-        console.log(
-          `${LOG_PREFIX} 💾 Rehydrated ${state.messages.length} messages`,
-        );
-
+        // Convert timestamp strings back to Date objects
         state.messages = state.messages.map((m) => ({
           ...m,
           timestamp: new Date(m.timestamp),
-          isNew: false,
+          isNew: false, // Mark all rehydrated messages as old
         }));
       },
     },

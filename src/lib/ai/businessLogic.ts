@@ -1,18 +1,12 @@
-// lib/ai/businessLogic.ts
-
 import { saveConversationState } from "./state/saveConversationState";
 import { getConversationState } from "./state/getConversationState";
 import { ConversationState } from "./state/conversationState";
 
-// Import all services
-import { CartService } from "@/services/cart.service";
-import { WishlistService } from "@/services/wishlist.service";
-import { OrderService } from "@/services/order.service";
-import { ProductService } from "@/services/product.service";
-import { CategoryService } from "@/services/category.service";
-import { SubcategoryService } from "@/services/subcategory.service";
-
-const LOG_PREFIX = "[BusinessLogic]";
+import { cartService } from "@/lib/domain/cart/CartService";
+import { wishlistService } from "@/lib/domain/wishlist/WishlistService";
+import { orderService } from "@/lib/domain/orders/OrderService";
+import { productsService } from "@/lib/domain/products/ProductsService";
+import { categoriesService } from "@/lib/domain/categories/CategoriesService";
 
 interface BusinessLogicParams {
   action: string;
@@ -28,12 +22,8 @@ interface BusinessLogicParams {
 
 export async function executeBusinessLogic(
   conversationId: string,
-  params: BusinessLogicParams
+  params: BusinessLogicParams,
 ) {
-  console.log(
-    `${LOG_PREFIX} Executing: ${params.action}, user ID: ${params.userId}`
-  );
-
   switch (params.action) {
     case "provide_inventory":
       return provideInventory(conversationId, params.userId);
@@ -42,7 +32,7 @@ export async function executeBusinessLogic(
       return checkAvailability(
         conversationId,
         params.category,
-        params.subcategory
+        params.subcategory,
       );
 
     case "provide_count":
@@ -52,7 +42,7 @@ export async function executeBusinessLogic(
         params.infoEntity,
         params.category,
         params.subcategory,
-        params.userId
+        params.userId,
       );
 
     case "browse_all_categories":
@@ -80,11 +70,10 @@ export async function executeBusinessLogic(
   }
 }
 
-/* ================= HELPER: Check if count is cached ================= */
-
+// Check if count is cached in conversation state
 async function getCachedCount(
   conversationId: string,
-  entity: string
+  entity: string,
 ): Promise<number | null> {
   const state = await getConversationState(conversationId);
 
@@ -119,34 +108,23 @@ async function getCachedCount(
 
   const cachedValue = state.counts[key];
   if (typeof cachedValue === "number") {
-    // If cached value is 0, we should verify with a fresh API call
-    // because 0 could mean "empty" or "not yet fetched"
     if (cachedValue === 0) {
-      console.log(
-        `${LOG_PREFIX} [Cache] Cached ${entity} count is 0 - verifying with fresh API call`
-      );
       return null;
     }
 
-    console.log(
-      `${LOG_PREFIX} [Cache] Using cached ${entity} count: ${cachedValue}`
-    );
     return cachedValue;
   }
 
   return null;
 }
 
-/* ================= INVENTORY ================= */
-
 async function provideInventory(
   conversationId: string,
-  userId?: string | null
+  userId?: string | null,
 ) {
   try {
     const state = await getConversationState(conversationId);
 
-    // Check if we have recent cached data (within last 5 minutes)
     const now = Date.now();
     const cacheValid = state?.updatedAt && now - state.updatedAt < 300000;
 
@@ -157,8 +135,6 @@ async function provideInventory(
         state.counts.subcategories !== undefined;
 
       if (hasAllCounts) {
-        console.log(`${LOG_PREFIX} [Inventory] Using cached inventory data`);
-
         return {
           stats: {
             totalProducts: state.counts.products || 0,
@@ -174,36 +150,37 @@ async function provideInventory(
       }
     }
 
-    console.log(`${LOG_PREFIX} [Inventory] Fetching fresh inventory data`);
-
-    // Fetch core data
-    const [productCount, categories, subcategories] = await Promise.all([
-      ProductService.getProductsCount(),
-      CategoryService.getCategories(),
-      SubcategoryService.getSubcategories(),
+    const [productCountResult, categories, subcategories] = await Promise.all([
+      productsService.getProducts({
+        count: true,
+        page: 1,
+        limit: 1,
+        sort: "newest",
+        productsPerCategory: 1,
+      }),
+      categoriesService.getAllCategories(),
+      categoriesService.getAllSubcategories(),
     ]);
+
+    const productCount = productCountResult.count;
 
     let cartCount = 0;
     let wishlistCount = 0;
     let ordersCount = 0;
 
-    // Fetch user-specific data if authenticated
     if (userId) {
-      [cartCount, wishlistCount, ordersCount] = await Promise.all([
-        CartService.getCartCount(userId),
-        WishlistService.getWishlistCount(userId),
-        OrderService.getOrdersCount(userId),
-      ]);
+      const [cartCountResult, wishlistCountResult, ordersResult] =
+        await Promise.all([
+          cartService.getCartCount(userId),
+          wishlistService.getWishlistCount(userId),
+          orderService.getOrders(userId, 1, 1),
+        ]);
+
+      cartCount = cartCountResult;
+      wishlistCount = wishlistCountResult;
+      ordersCount = ordersResult.pagination?.totalItems || 0;
     }
 
-    console.log(
-      `${LOG_PREFIX} [Inventory] Products: ${productCount}, Categories: ${categories.length}, Subcategories: ${subcategories.length}` +
-        (userId
-          ? `, Cart: ${cartCount}, Wishlist: ${wishlistCount}, Orders: ${ordersCount}`
-          : "")
-    );
-
-    // Save to state
     await saveConversationState(conversationId, {
       lastCategories: categories.map((c: any) => ({
         _id: c._id,
@@ -239,7 +216,6 @@ async function provideInventory(
       subcategories: subcategories.slice(0, 10),
     };
   } catch (error: any) {
-    console.error(`${LOG_PREFIX} [Inventory] Error:`, error.message);
     return {
       stats: {
         totalProducts: 0,
@@ -253,15 +229,12 @@ async function provideInventory(
   }
 }
 
-/* ================= AVAILABILITY ================= */
-
 async function checkAvailability(
   conversationId: string,
   category: string | null,
-  subcategory: string | null
+  subcategory: string | null,
 ) {
   if (!category) {
-    console.log(`${LOG_PREFIX} [Availability] No category provided`);
     return {
       entityType: "PRODUCT",
       count: 0,
@@ -270,19 +243,16 @@ async function checkAvailability(
     };
   }
 
-  console.log(
-    `${LOG_PREFIX} [Availability] Checking: ${category}${
-      subcategory ? `/${subcategory}` : ""
-    }`
-  );
+  const productsResult = await productsService.getProducts({
+    category: category || undefined,
+    subcategory: subcategory || undefined,
+    page: 1,
+    limit: 20,
+    sort: "newest",
+    productsPerCategory: 10,
+  });
 
-  const products = await ProductService.searchProducts(
-    category,
-    subcategory,
-    {}
-  );
-
-  console.log(`${LOG_PREFIX} [Availability] Found ${products.length} products`);
+  const products = productsResult.products || [];
 
   await saveConversationState(conversationId, {
     lastProducts: products.map((p: any) => ({
@@ -301,10 +271,6 @@ async function checkAvailability(
     lastAction: "CHECK_AVAILABILITY",
   });
 
-  console.log(
-    `${LOG_PREFIX} [Availability] ✅ Saved ${products.length} products to state`
-  );
-
   return {
     entityType: subcategory ? "SUBCATEGORY" : "CATEGORY",
     count: products.length,
@@ -314,23 +280,16 @@ async function checkAvailability(
   };
 }
 
-/* ================= COUNT ================= */
-
 async function provideCount(
   conversationId: string,
   actionType?: string | null,
   infoEntity?: string | null,
   category?: string | null,
   subcategory?: string | null,
-  userId?: string | null
+  userId?: string | null,
 ) {
   const entity = infoEntity || actionType;
 
-  console.log(
-    `${LOG_PREFIX} [Count] Entity: ${entity}, Category: ${category}, UserId: ${userId}`
-  );
-
-  // Check cache first
   const cachedCount = await getCachedCount(conversationId, entity || "UNKNOWN");
   if (cachedCount !== null) {
     return {
@@ -340,10 +299,8 @@ async function provideCount(
     };
   }
 
-  // CART COUNT
   if (entity === "CART" || entity === "CART_ITEM" || entity === "CART_ITEMS") {
     if (!userId) {
-      console.log(`${LOG_PREFIX} [Count] Cart count requires authentication`);
       return {
         entityType: "CART",
         count: 0,
@@ -351,8 +308,7 @@ async function provideCount(
       };
     }
 
-    const count = await CartService.getCartCount(userId);
-    console.log(`${LOG_PREFIX} [Count] Cart items: ${count}`);
+    const count = await cartService.getCartCount(userId);
 
     await saveConversationState(conversationId, {
       counts: { cart: count },
@@ -364,16 +320,12 @@ async function provideCount(
     };
   }
 
-  // WISHLIST COUNT
   if (
     entity === "WISHLIST" ||
     entity === "WISHLIST_ITEM" ||
     entity === "WISHLIST_ITEMS"
   ) {
     if (!userId) {
-      console.log(
-        `${LOG_PREFIX} [Count] Wishlist count requires authentication`
-      );
       return {
         entityType: "WISHLIST",
         count: 0,
@@ -381,8 +333,7 @@ async function provideCount(
       };
     }
 
-    const count = await WishlistService.getWishlistCount(userId);
-    console.log(`${LOG_PREFIX} [Count] Wishlist items: ${count}`);
+    const count = await wishlistService.getWishlistCount(userId);
 
     await saveConversationState(conversationId, {
       counts: { wishlist: count },
@@ -394,10 +345,8 @@ async function provideCount(
     };
   }
 
-  // ORDERS COUNT
   if (entity === "ORDER" || entity === "ORDERS") {
     if (!userId) {
-      console.log(`${LOG_PREFIX} [Count] Orders count requires authentication`);
       return {
         entityType: "ORDER",
         count: 0,
@@ -405,8 +354,8 @@ async function provideCount(
       };
     }
 
-    const count = await OrderService.getOrdersCount(userId);
-    console.log(`${LOG_PREFIX} [Count] Orders: ${count}`);
+    const ordersResult = await orderService.getOrders(userId, 1, 1);
+    const count = ordersResult.pagination?.totalItems || 0;
 
     await saveConversationState(conversationId, {
       counts: { orders: count },
@@ -418,10 +367,15 @@ async function provideCount(
     };
   }
 
-  // PRODUCT COUNT
   if (entity === "PRODUCT" || entity === "PRODUCTS") {
-    const count = await ProductService.getProductsCount();
-    console.log(`${LOG_PREFIX} [Count] Products: ${count}`);
+    const result = await productsService.getProducts({
+      count: true,
+      page: 1,
+      limit: 1,
+      sort: "newest",
+      productsPerCategory: 1,
+    });
+    const count = result.count;
 
     await saveConversationState(conversationId, {
       counts: { products: count },
@@ -434,10 +388,8 @@ async function provideCount(
     };
   }
 
-  // CATEGORY COUNT
   if (entity === "CATEGORY" || entity === "CATEGORIES") {
-    const categories = await CategoryService.getCategories();
-    console.log(`${LOG_PREFIX} [Count] Categories: ${categories.length}`);
+    const categories = await categoriesService.getAllCategories();
 
     await saveConversationState(conversationId, {
       counts: { categories: categories.length },
@@ -450,10 +402,8 @@ async function provideCount(
     };
   }
 
-  // SUBCATEGORY COUNT
   if (entity === "SUBCATEGORY" || entity === "SUBCATEGORIES") {
-    const subcategories = await SubcategoryService.getSubcategories(category);
-    console.log(`${LOG_PREFIX} [Count] Subcategories: ${subcategories.length}`);
+    const subcategories = await categoriesService.getAllSubcategories();
 
     await saveConversationState(conversationId, {
       counts: { subcategories: subcategories.length },
@@ -473,14 +423,8 @@ async function provideCount(
   };
 }
 
-/* ================= CATEGORIES ================= */
-
 async function fetchCategories(conversationId: string) {
-  const categories = await CategoryService.getCategories();
-
-  console.log(
-    `${LOG_PREFIX} [Categories] Fetched ${categories.length} categories`
-  );
+  const categories = await categoriesService.getAllCategories();
 
   await saveConversationState(conversationId, {
     lastCategories: categories.map((c: any) => ({
@@ -500,25 +444,21 @@ async function fetchCategories(conversationId: string) {
   };
 }
 
-/* ================= PRODUCTS ================= */
-
 async function fetchProducts(
   conversationId: string,
-  params: BusinessLogicParams
+  params: BusinessLogicParams,
 ) {
-  console.log(
-    `${LOG_PREFIX} [Products] Fetching: ${params.category || "all"}${
-      params.subcategory ? `/${params.subcategory}` : ""
-    }`
-  );
+  const productsResult = await productsService.getProducts({
+    category: params.category || undefined,
+    subcategory: params.subcategory || undefined,
+    page: 1,
+    limit: 20,
+    sort: "newest",
+    productsPerCategory: 10,
+    ...params.filters,
+  });
 
-  const products = await ProductService.searchProducts(
-    params.category,
-    params.subcategory,
-    params.filters || {}
-  );
-
-  console.log(`${LOG_PREFIX} [Products] Found ${products.length} products`);
+  const products = productsResult.products || [];
 
   await saveConversationState(conversationId, {
     lastProducts: products.map((p: any) => ({
@@ -539,10 +479,6 @@ async function fetchProducts(
     lastAction: "BROWSING_PRODUCTS",
   });
 
-  console.log(
-    `${LOG_PREFIX} [Products] ✅ Saved ${products.length} products to state`
-  );
-
   return {
     products: products.slice(0, 100),
     count: products.length,
@@ -551,22 +487,17 @@ async function fetchProducts(
   };
 }
 
-/* ================= VIEW PRODUCT ================= */
-
 async function handleViewProduct(
   conversationId: string,
-  params: BusinessLogicParams
+  params: BusinessLogicParams,
 ) {
   const productId = params.productId || params.filters?.productId;
 
   if (!productId) {
-    console.log(`${LOG_PREFIX} [View Product] No productId provided`);
     return null;
   }
 
-  console.log(`${LOG_PREFIX} [View Product] Fetching product details`);
-
-  const product = await ProductService.getProductById(productId);
+  const product = await productsService.getProductById(productId);
 
   if (!product) {
     return null;
@@ -606,19 +537,14 @@ async function handleViewProduct(
     },
   });
 
-  console.log(`${LOG_PREFIX} [View Product] ✅ Saved current product to state`);
-
   return {
     count: 0,
     products: [product],
   };
 }
 
-/* ================= CART ITEMS ================= */
-
 async function fetchCartItems(conversationId: string, userId?: string | null) {
   if (!userId) {
-    console.log(`${LOG_PREFIX} [Cart] No userId - requires authentication`);
     return {
       entityType: "CART",
       count: 0,
@@ -627,11 +553,7 @@ async function fetchCartItems(conversationId: string, userId?: string | null) {
     };
   }
 
-  console.log(`${LOG_PREFIX} [Cart] Fetching cart for user: ${userId}`);
-
-  const items = await CartService.getCartItems(userId);
-
-  console.log(`${LOG_PREFIX} [Cart] Found ${items.length} items`);
+  const items = await cartService.getCartItems(userId);
 
   await saveConversationState(conversationId, {
     lastAction: "VIEW_CART",
@@ -645,14 +567,11 @@ async function fetchCartItems(conversationId: string, userId?: string | null) {
   };
 }
 
-/* ================= WISHLIST ITEMS ================= */
-
 async function fetchWishlistItems(
   conversationId: string,
-  userId?: string | null
+  userId?: string | null,
 ) {
   if (!userId) {
-    console.log(`${LOG_PREFIX} [Wishlist] No userId - requires authentication`);
     return {
       entityType: "WISHLIST",
       count: 0,
@@ -661,11 +580,7 @@ async function fetchWishlistItems(
     };
   }
 
-  console.log(`${LOG_PREFIX} [Wishlist] Fetching wishlist for user: ${userId}`);
-
-  const items = await WishlistService.getWishlistItems(userId);
-
-  console.log(`${LOG_PREFIX} [Wishlist] Found ${items.length} items`);
+  const items = await wishlistService.getWishlistItems(userId);
 
   await saveConversationState(conversationId, {
     lastAction: "VIEW_WISHLIST",
@@ -679,11 +594,8 @@ async function fetchWishlistItems(
   };
 }
 
-/* ================= ORDERS ================= */
-
 async function fetchOrders(conversationId: string, userId?: string | null) {
   if (!userId) {
-    console.log(`${LOG_PREFIX} [Orders] No userId - requires authentication`);
     return {
       entityType: "ORDER",
       count: 0,
@@ -692,11 +604,9 @@ async function fetchOrders(conversationId: string, userId?: string | null) {
     };
   }
 
-  console.log(`${LOG_PREFIX} [Orders] Fetching orders for user: ${userId}`);
-
-  const { orders, totalOrders } = await OrderService.getOrders(userId, 100);
-
-  console.log(`${LOG_PREFIX} [Orders] Found ${totalOrders} orders`);
+  const ordersResult = await orderService.getOrders(userId, 1, 100);
+  const orders = ordersResult.orders || [];
+  const totalOrders = ordersResult.pagination?.totalItems || 0;
 
   await saveConversationState(conversationId, {
     lastAction: "VIEW_ORDERS",

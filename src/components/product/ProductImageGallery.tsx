@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Check, Share2, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ImageData {
   url: string;
@@ -14,7 +14,10 @@ interface ProductImageGalleryProps {
   productName: string;
 }
 
-const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) => {
+const ProductImageGallery = ({
+  images,
+  productName,
+}: ProductImageGalleryProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [actualIndex, setActualIndex] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -54,8 +57,14 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const mouseXPercent = Math.max(10, Math.min((mouseX / rect.width) * 100, 90));
-    const mouseYPercent = Math.max(10, Math.min((mouseY / rect.height) * 100, 90));
+    const mouseXPercent = Math.max(
+      10,
+      Math.min((mouseX / rect.width) * 100, 90),
+    );
+    const mouseYPercent = Math.max(
+      10,
+      Math.min((mouseY / rect.height) * 100, 90),
+    );
     setMousePosition({ x: mouseXPercent, y: mouseYPercent });
   };
 
@@ -75,7 +84,8 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
     const newActualIndex = actualIndex - 1;
     setActualIndex(newActualIndex);
 
-    const newSelectedIndex = selectedImageIndex === 0 ? images.length - 1 : selectedImageIndex - 1;
+    const newSelectedIndex =
+      selectedImageIndex === 0 ? images.length - 1 : selectedImageIndex - 1;
     setSelectedImageIndex(newSelectedIndex);
   };
 
@@ -120,34 +130,39 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
   if (!images.length) {
     return (
       <div className="w-full aspect-square bg-gray-100 dark:bg-gray-700 flex items-center justify-center max-w-md border border-gray-200 dark:border-gray-600">
-        <span className="text-gray-400 dark:text-gray-500 text-sm">No Image Available</span>
+        <span className="text-gray-400 dark:text-gray-500 text-sm">
+          No Image Available
+        </span>
       </div>
     );
   }
   return (
     <>
       {/* Zoomed Image Portal - Renders outside of any parent containers */}
-      {mounted && isZooming && currentImage && createPortal(
-        <div className="fixed inset-0 z-[99999] pointer-events-none hidden lg:block">
-          <div
-            className="border border-gray-300 shadow-2xl bg-white transition-all duration-300 ease-out"
-            style={{
-              width: '700px',
-              height: '700px',
-              position: 'fixed',
-              top: '37px',
-              right: '1vw',
-              zIndex: 99999,
-              backgroundImage: `url(${currentImage.url})`,
-              backgroundSize: '170% 170%',
-              backgroundPosition: `${mousePosition.x}% ${mousePosition.y}%`,
-              backgroundRepeat: 'no-repeat',
-              filter: 'contrast(1.05) brightness(1.02)',
-            }}
-          />
-        </div>,
-        document.body
-      )}
+      {mounted &&
+        isZooming &&
+        currentImage &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] pointer-events-none hidden lg:block">
+            <div
+              className="border border-gray-300 shadow-2xl bg-white transition-all duration-300 ease-out"
+              style={{
+                width: "700px",
+                height: "700px",
+                position: "fixed",
+                top: "37px",
+                right: "1vw",
+                zIndex: 99999,
+                backgroundImage: `url(${currentImage.url})`,
+                backgroundSize: "170% 170%",
+                backgroundPosition: `${mousePosition.x}% ${mousePosition.y}%`,
+                backgroundRepeat: "no-repeat",
+                filter: "contrast(1.05) brightness(1.02)",
+              }}
+            />
+          </div>,
+          document.body,
+        )}
 
       <div className="">
         <div className="flex flex-col md:flex-row border border-gray-300 dark:border-gray-600 overflow-hidden max-w-150 md:p-2">
@@ -159,8 +174,11 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                   key={index}
                   onMouseEnter={() => handleThumbnailClick(index)}
                   onClick={() => handleThumbnailClick(index)}
-                  className={`w-14 h-14 md:w-16 md:h-16 shrink-0 border md:border-gray-200 dark:md:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors ${selectedImageIndex === index ? 'border-2 border-black dark:border-white' : ''
-                    }`}
+                  className={`w-14 h-14 md:w-16 md:h-16 shrink-0 border md:border-gray-200 dark:md:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors ${
+                    selectedImageIndex === index
+                      ? "border-2 border-black dark:border-white"
+                      : ""
+                  }`}
                 >
                   <img
                     src={image.url}
@@ -189,13 +207,18 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                   className="md:hidden flex h-full"
                   style={{
                     transform: `translateX(-${actualIndex * 100}%)`,
-                    transition: isTransitioning ? 'transform 0.3s ease-out' : 'none',
+                    transition: isTransitioning
+                      ? "transform 0.3s ease-out"
+                      : "none",
                   }}
                 >
                   {/* Last image clone (for smooth previous transition) */}
                   <img
                     src={images[images.length - 1].url}
-                    alt={images[images.length - 1].alt || `${productName} ${images.length}`}
+                    alt={
+                      images[images.length - 1].alt ||
+                      `${productName} ${images.length}`
+                    }
                     className="w-full h-full object-cover object-center shrink-0"
                   />
                   {/* Real images */}
@@ -230,11 +253,11 @@ const ProductImageGallery = ({ images, productName }: ProductImageGalleryProps) 
                     style={{
                       left: `${mousePosition.x}%`,
                       top: `${mousePosition.y}%`,
-                      width: '35%',
-                      height: '35%',
-                      backgroundColor: 'rgba(255,255,255,0.3)',
-                      pointerEvents: 'none',
-                      transform: 'translate(-50%, -50%)',
+                      width: "35%",
+                      height: "35%",
+                      backgroundColor: "rgba(255,255,255,0.3)",
+                      pointerEvents: "none",
+                      transform: "translate(-50%, -50%)",
                     }}
                   ></div>
                 )}

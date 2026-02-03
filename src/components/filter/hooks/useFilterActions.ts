@@ -30,9 +30,7 @@ export const useFilterActions = (
         });
 
         navigate.push(`/${currentSlug}?${params.toString()}`);
-      } catch (error) {
-        console.error("Error updating filters:", error);
-      }
+      } catch (error) {}
     },
     [navigate, searchParams, currentSlug],
   );
@@ -132,9 +130,7 @@ export const useFilterActions = (
       const queryString = params.toString();
       navigate.push(`${pathname}${queryString ? `?${queryString}` : ""}`);
       onClose?.();
-    } catch (error) {
-      console.error("Error clearing filters:", error);
-    }
+    } catch (error) {}
   }, [navigate, searchParams, pathname, onClose]);
 
   return {

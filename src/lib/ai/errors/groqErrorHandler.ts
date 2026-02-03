@@ -24,7 +24,7 @@ export class GroqError extends Error {
 
 export function classifyGroqHttpError(
   status: number,
-  bodyText: string
+  bodyText: string,
 ): GroqError {
   // Billing / spend limit
   if (
@@ -34,7 +34,7 @@ export function classifyGroqHttpError(
     return new GroqError(
       "BILLING_BLOCKED",
       "Groq billing limit reached",
-      status
+      status,
     );
   }
 
@@ -57,6 +57,6 @@ export function classifyGroqHttpError(
   return new GroqError(
     "INVALID_REQUEST",
     `Groq invalid request (${status})`,
-    status
+    status,
   );
 }

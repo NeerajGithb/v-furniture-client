@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   ShoppingBag,
@@ -9,23 +9,33 @@ import {
   Package,
   CreditCard,
   Loader2,
-} from 'lucide-react';
-import { NavLink } from '@/components/NavigationLoader';
-import { useCartStore } from '@/stores/cartStore';
-import { useCheckoutStore } from '@/stores/checkoutStore';
-import { useCart } from '@/hooks/useCartData';
-import { PaymentMethod } from '@/types/payment';
+} from "lucide-react";
+import { NavLink } from "@/components/NavigationLoader";
+import { PaymentMethod } from "@/types/payment";
+import { Cart } from "@/types/cart";
 
 interface PriceSummaryCardProps {
-  mode: 'cart' | 'checkout' | 'payment';
+  mode: "cart" | "checkout" | "payment";
 
+  // Data props
+  cart?: Cart | null;
+  cartLoading?: boolean;
+  checkoutData?: any;
+  selectedItems?: any[];
+  totals?: any;
+  selectedAddressId?: string;
+  selectedPaymentMethod?: string;
+
+  // Action props
   onCheckout?: () => void;
   onProceedToPayment?: () => void;
   onPlaceOrder?: () => void;
 
+  // State props
   placingOrder?: boolean;
   loading?: boolean;
 
+  // Display props
   showItemDetails?: boolean;
   showTrustSignals?: boolean;
   showContinueShopping?: boolean;
@@ -33,6 +43,13 @@ interface PriceSummaryCardProps {
 
 const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
   mode,
+  cart,
+  cartLoading = false,
+  checkoutData,
+  selectedItems = [],
+  totals,
+  selectedAddressId = "",
+  selectedPaymentMethod = "",
   onCheckout,
   onProceedToPayment,
   onPlaceOrder,
@@ -42,24 +59,8 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
   showTrustSignals = true,
   showContinueShopping = true,
 }) => {
-  const cartStore = useCartStore();
-  const checkoutStore = useCheckoutStore();
-  
-  // Only fetch cart data when in cart mode
-  const { data: cart } = mode === 'cart' ? useCart() : { data: null };
-
-  const checkoutData = mode !== 'cart' ? checkoutStore.getCheckoutData() : null;
-
-  const selectedItems =
-    mode === 'cart'
-      ? cartStore.getSelectedCartItems(cart?.items || [])
-      : checkoutStore.getSelectedItems();
-
-  const totals = mode === 'cart' ? cartStore.checkout.totals : checkoutData?.totals;
-  const selectedAddressId = checkoutData?.selectedAddressId || '';
-  const selectedPaymentMethod = checkoutData?.selectedPaymentMethod || '';
-
-  if (!totals) {
+  // Show loading state
+  if (cartLoading || loading) {
     return (
       <div className="bg-white dark:bg-[#0f1419] rounded border border-gray-200 dark:border-gray-700 p-6 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-2" />
@@ -68,32 +69,46 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
     );
   }
 
+  // Show empty state if no totals
+  if (!totals) {
+    return (
+      <div className="bg-white dark:bg-[#0f1419] rounded border border-gray-200 dark:border-gray-700 p-6 text-center">
+        <p className="text-gray-600 dark:text-gray-400">No summary available</p>
+      </div>
+    );
+  }
+
   const originalPriceTotal = totals.subtotal + totals.totalDiscount;
 
   const freeShippingThreshold = 10000;
   const isFreeShipping = totals.subtotal >= freeShippingThreshold;
-  const amountForFreeShipping = Math.max(0, freeShippingThreshold - totals.subtotal);
+  const amountForFreeShipping = Math.max(
+    0,
+    freeShippingThreshold - totals.subtotal,
+  );
 
   const getButtonText = () => {
     switch (mode) {
-      case 'cart':
+      case "cart":
         return `Proceed to Checkout (${totals.selectedQuantity})`;
-      case 'checkout':
-        return 'Proceed to Payment';
-      case 'payment':
-        return selectedPaymentMethod === PaymentMethod.COD ? 'PLACE ORDER' : 'PAY NOW';
+      case "checkout":
+        return "Proceed to Payment";
+      case "payment":
+        return selectedPaymentMethod === PaymentMethod.COD
+          ? "PLACE ORDER"
+          : "PAY NOW";
       default:
-        return 'Continue';
+        return "Continue";
     }
   };
 
   const getButtonAction = () => {
     switch (mode) {
-      case 'cart':
+      case "cart":
         return onCheckout;
-      case 'checkout':
+      case "checkout":
         return onProceedToPayment;
-      case 'payment':
+      case "payment":
         return onPlaceOrder;
       default:
         return undefined;
@@ -101,26 +116,26 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
   };
 
   const isButtonDisabled = () => {
-    if (mode === 'payment') {
+    if (mode === "payment") {
       return placingOrder || !selectedAddressId || !selectedPaymentMethod;
     }
-    if (mode === 'checkout') {
+    if (mode === "checkout") {
       return loading || !selectedAddressId;
     }
     return loading || totals.selectedQuantity === 0;
   };
 
   const getDisabledReason = () => {
-    if (mode === 'payment' && !selectedPaymentMethod) {
-      return 'Select a payment method to continue';
+    if (mode === "payment" && !selectedPaymentMethod) {
+      return "Select a payment method to continue";
     }
-    if ((mode === 'checkout' || mode === 'payment') && !selectedAddressId) {
-      return 'Select a delivery address to continue';
+    if ((mode === "checkout" || mode === "payment") && !selectedAddressId) {
+      return "Select a delivery address to continue";
     }
     if (totals.selectedQuantity === 0) {
-      return 'Select items to continue';
+      return "Select items to continue";
     }
-    return '';
+    return "";
   };
 
   return (
@@ -129,30 +144,37 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <ShoppingBag className="w-5 h-5" />
-          {mode === 'payment' ? 'Order Summary' : 'Price Details'}
+          {mode === "payment" ? "Order Summary" : "Price Details"}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {totals.selectedQuantity} {totals.selectedQuantity === 1 ? 'item' : 'items'} selected
+          {totals.selectedQuantity}{" "}
+          {totals.selectedQuantity === 1 ? "item" : "items"} selected
         </p>
       </div>
 
       {/* Items Preview - Only show on checkout and payment pages */}
       {showItemDetails && selectedItems.length > 0 && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Items in your order</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Items in your order
+          </h4>
           <div className="space-y-2 max-h-32 overflow-y-auto">
             {selectedItems.slice(0, 3).map((item, index) => (
-              <div key={item.productId || index} className="flex items-center gap-2">
+              <div
+                key={item.productId || index}
+                className="flex items-center gap-2"
+              >
                 <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden shrink-0">
                   {item.product?.mainImage?.url ? (
                     <img
                       src={item.product.mainImage.url}
-                      alt={item.product?.name || 'Product'}
+                      alt={item.product?.name || "Product"}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
+                        e.currentTarget.style.display = "none";
+                        const fallback = e.currentTarget
+                          .nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = "flex";
                       }}
                     />
                   ) : null}
@@ -162,19 +184,24 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-900 dark:text-gray-100 truncate">
-                    {item.product?.name || 'Product'}
+                    {item.product?.name || "Product"}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                       ₹{item.product?.finalPrice?.toLocaleString() || 0}
                     </span>
-                    {item.product?.discountPercent && item.product.discountPercent > 0 && (
-                      <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1 py-0.5 rounded font-medium">
-                        {Math.round(item.product.discountPercent)}% OFF
-                      </span>
-                    )}
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400">× {item.quantity}</span>
-                    {checkoutData?.insuranceEnabled?.includes(item.productId) && (
+                    {item.product?.discountPercent &&
+                      item.product.discountPercent > 0 && (
+                        <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1 py-0.5 rounded font-medium">
+                          {Math.round(item.product.discountPercent)}% OFF
+                        </span>
+                      )}
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                      × {item.quantity}
+                    </span>
+                    {checkoutData?.insuranceEnabled?.includes(
+                      item.productId,
+                    ) && (
                       <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
                     )}
                   </div>
@@ -195,28 +222,36 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
         {/* Subtotal - showing original price total */}
         <div className="flex justify-between items-center">
           <span className="text-xs text-gray-700 dark:text-gray-300">
-            Price ({totals.selectedQuantity} {totals.selectedQuantity === 1 ? 'item' : 'items'})
+            Price ({totals.selectedQuantity}{" "}
+            {totals.selectedQuantity === 1 ? "item" : "items"})
           </span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">₹{originalPriceTotal.toLocaleString()}</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            ₹{originalPriceTotal.toLocaleString()}
+          </span>
         </div>
 
         {/* Discount */}
         {totals.totalDiscount > 0 && (
           <div className="flex justify-between items-center text-green-600 dark:text-green-400">
             <span className="text-xs">Discount</span>
-            <span className="text-sm font-medium">-₹{totals.totalDiscount.toLocaleString()}</span>
+            <span className="text-sm font-medium">
+              -₹{totals.totalDiscount.toLocaleString()}
+            </span>
           </div>
         )}
 
         {/* Coupon Discount */}
-        {checkoutData?.appliedCoupon && checkoutData.appliedCoupon.discount > 0 && (
-          <div className="flex justify-between items-center text-green-600 dark:text-green-400">
-            <span className="text-xs flex items-center gap-1">
-              Coupon ({checkoutData.appliedCoupon.code})
-            </span>
-            <span className="text-sm font-medium">-₹{checkoutData.appliedCoupon.discount.toLocaleString()}</span>
-          </div>
-        )}
+        {checkoutData?.appliedCoupon &&
+          checkoutData.appliedCoupon.discount > 0 && (
+            <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+              <span className="text-xs flex items-center gap-1">
+                Coupon ({checkoutData.appliedCoupon.code})
+              </span>
+              <span className="text-sm font-medium">
+                -₹{checkoutData.appliedCoupon.discount.toLocaleString()}
+              </span>
+            </div>
+          )}
 
         {/* Protection Plan */}
         {totals.insuranceCost > 0 && (
@@ -237,8 +272,10 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
             <Truck className="w-3 h-3" />
             Delivery Charges
           </span>
-          <span className={`text-sm font-medium ${isFreeShipping ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
-            {isFreeShipping ? 'FREE' : `₹${totals.shippingCost}`}
+          <span
+            className={`text-sm font-medium ${isFreeShipping ? "text-green-600 dark:text-green-400" : "text-gray-900 dark:text-gray-100"}`}
+          >
+            {isFreeShipping ? "FREE" : `₹${totals.shippingCost}`}
           </span>
         </div>
 
@@ -247,20 +284,23 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
           <div className="text-[10px] text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-2 rounded">
             <strong>Free Shipping Available!</strong>
             <br />
-            Add ₹{amountForFreeShipping.toLocaleString()} more to get free delivery
+            Add ₹{amountForFreeShipping.toLocaleString()} more to get free
+            delivery
           </div>
         )}
 
         <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {mode === 'payment' ? 'Amount Payable' : 'Total Amount'}
+              {mode === "payment" ? "Amount Payable" : "Total Amount"}
             </span>
             <span className="text-base font-semibold text-gray-900 dark:text-gray-100">
               ₹{totals.totalAmount.toLocaleString()}
             </span>
           </div>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Inclusive of all taxes and charges</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+            Inclusive of all taxes and charges
+          </p>
         </div>
       </div>
 
@@ -270,16 +310,16 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
           onClick={getButtonAction()}
           disabled={isButtonDisabled()}
           className="w-full bg-black dark:bg-white text-white dark:text-black py-2.5 px-4 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 rounded relative group"
-          title={isButtonDisabled() ? getDisabledReason() : ''}
+          title={isButtonDisabled() ? getDisabledReason() : ""}
         >
-          {(placingOrder || loading) ? (
+          {placingOrder || loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {placingOrder ? 'Processing...' : 'Loading...'}
+              {placingOrder ? "Processing..." : "Loading..."}
             </>
           ) : (
             <>
-              {mode === 'payment' ? (
+              {mode === "payment" ? (
                 selectedPaymentMethod === PaymentMethod.COD ? (
                   <Check className="w-4 h-4" />
                 ) : (
@@ -303,7 +343,7 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
         </button>
 
         {/* Continue Shopping Link */}
-        {showContinueShopping && mode !== 'payment' && (
+        {showContinueShopping && mode !== "payment" && (
           <NavLink
             href="/products"
             className="block text-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-medium mt-2 transition-colors"
@@ -328,7 +368,7 @@ const PriceSummaryCard: React.FC<PriceSummaryCardProps> = ({
             <Check className="w-3 h-3 text-green-600 dark:text-green-400 shrink-0" />
             <span>Fast & Reliable Delivery</span>
           </div>
-          {mode === 'payment' && (
+          {mode === "payment" && (
             <>
               <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
                 <Check className="w-3 h-3 text-green-600 dark:text-green-400 shrink-0" />

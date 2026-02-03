@@ -2,16 +2,7 @@
  * Shared pricing calculation utilities
  * Single source of truth for all price calculations
  */
-
-export interface CartItem {
-  productId: string;
-  quantity: number;
-  itemTotal: number;
-  product?: {
-    finalPrice: number;
-    originalPrice?: number;
-  };
-}
+import { CartItem } from "@/types/cart";
 
 export interface CheckoutTotals {
   subtotal: number;
@@ -28,7 +19,7 @@ export interface CheckoutTotals {
  */
 export const calculateItemTotal = (
   finalPrice: number,
-  quantity: number
+  quantity: number,
 ): number => {
   return finalPrice * quantity;
 };
@@ -40,7 +31,7 @@ export const calculateItemTotal = (
 export const calculateItemDiscount = (
   originalPrice: number | undefined,
   finalPrice: number,
-  quantity: number
+  quantity: number,
 ): number => {
   if (!originalPrice || originalPrice <= finalPrice) {
     return 0;
@@ -72,7 +63,7 @@ export const calculateShippingCost = (subtotal: number): number => {
  */
 export const calculateCheckoutTotals = (
   cartItems: CartItem[],
-  insuranceEnabledIds: string[] = []
+  insuranceEnabledIds: string[] = [],
 ): CheckoutTotals => {
   // Calculate subtotal
   const subtotal = cartItems.reduce((sum, item) => sum + item.itemTotal, 0);
@@ -80,7 +71,7 @@ export const calculateCheckoutTotals = (
   // Calculate selected quantity
   const selectedQuantity = cartItems.reduce(
     (sum, item) => sum + item.quantity,
-    0
+    0,
   );
 
   // Calculate total discount
@@ -91,7 +82,7 @@ export const calculateCheckoutTotals = (
         calculateItemDiscount(
           item.product.originalPrice,
           item.product.finalPrice,
-          item.quantity
+          item.quantity,
         )
       );
     }

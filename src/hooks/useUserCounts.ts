@@ -1,25 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchWithCredentials } from '@/utils/fetchWithCredentials';
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/userService";
+import { UserCounts } from "@/types/user";
 
-interface UserCounts {
-  cartCount: number;
-  wishlistCount: number;
-  orderCount: number;
-}
-
-export const useUserCounts = () => {
+export const useUserCounts = (enabled: boolean = true) => {
   return useQuery<UserCounts>({
-    queryKey: ['user-counts'],
-    queryFn: async () => {
-      const response = await fetchWithCredentials('/api/user/counts');
-      if (!response.ok) {
-        throw new Error('Failed to fetch user counts');
-      }
-      return response.json();
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes (matches server cache)
+    queryKey: ["user-counts"],
+    queryFn: () => userService.getUserCounts(),
+    enabled: enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Disable automatic refetch on window focus
     retry: 2,
   });
 };

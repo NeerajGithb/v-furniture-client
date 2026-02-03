@@ -4,7 +4,7 @@ import { ConversationState } from "./conversationState";
 import { createInitialConversationState } from "./createInitialConversationState";
 
 export async function getConversationState(
-  conversationId: string
+  conversationId: string,
 ): Promise<ConversationState> {
   const state = await redis.get<ConversationState>(`conv:${conversationId}`);
 

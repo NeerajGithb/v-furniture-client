@@ -1,200 +1,308 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useOrdersPage } from './hooks/useOrders';
-import { useAuthStore } from '@/stores/authStore';
-import { OrdersFilters } from './components/OrdersFilters';
-import { OrdersList } from './components/OrdersList';
-import { CancelOrderModal } from './components/modals/CancelOrderModal';
-import { DeleteConfirmModal } from './components/modals/DeleteConfirmModal';
-import { useNavigate } from '@/components/NavigationLoader';
-import { ChevronRight, Package } from 'lucide-react';
-import Loading from '@/components/ui/Loader';
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { Package } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useOrders, useDeleteOrder } from "@/hooks/useOrderData";
+import { useOrderStore } from "@/stores/orderStore";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { OrdersHeader } from "./components/OrdersHeader";
+import { OrdersFilters } from "./components/OrdersFilters";
+import { OrdersList } from "./components/OrdersList";
+import { EmptyOrders } from "./components/EmptyOrders";
+import { CancelOrderModal } from "./components/modals/CancelOrderModal";
+import { DeleteConfirmModal } from "./components/modals/DeleteConfirmModal";
+import { useNavigate } from "@/components/NavigationLoader";
+import { filterOrders, canDeleteOrder } from "./utils/orderHelpers";
+import type { Order, OrderItem } from "@/types/order";
+import type { CancelModalState, DeleteModalState } from "@/types/orders";
 
 export default function OrdersPage() {
+  const { user, authLoading } = useAuth();
   const navigate = useNavigate();
-  const { authLoading } = useAuthStore();
+  const searchParams = useSearchParams();
+
+  // Check if user is ready for private data calls
+  const isUserReady = !authLoading && !!user;
+
+  // Data fetching hooks
   const {
-    user,
-    loading,
-    error,
-    orderError,
-    setOrderError,
-    orders,
-    filteredOrders,
-    search,
-    setSearch,
-    filterStatus,
-    setFilterStatus,
-    filterTime,
-    setFilterTime,
-    hasActiveFilters,
-    clearFilters,
-    expandedOrder,
-    toggleExpandOrder,
-    cancelModal,
-    deleteModal,
-    handleCancelOrder,
-    handleCloseCancelModal,
-    handleDeleteOrder,
-    confirmDeleteOrder,
-    loadingMore,
-    handleLoadMore,
-    handleReorder,
-    handleDownloadInvoice,
-    handleContactSupport,
-    isOrderBeingDeleted,
-  } = useOrdersPage();
+    data: ordersData,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useOrders({ page: 1, limit: 50 }, isUserReady);
+  const { isOrderBeingDeleted } = useOrderStore();
+  const deleteOrderMutation = useDeleteOrder();
 
-  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
+  // Local state
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterTime, setFilterTime] = useState<string>("all");
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [cancelModal, setCancelModal] = useState<CancelModalState>({
+    isOpen: false,
+  });
+  const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
+    isOpen: false,
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Loading state
-  if (authLoading || loading) {
-    return <Loading fullScreen message="Loading your orders..." />;
-  }
+  // Process data
+  const orders = ordersData?.orders || [];
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to load orders"
+    : null;
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419] flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded shadow-lg dark:shadow-gray-900 text-center max-w-sm w-full">
-          <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full bg-black dark:bg-gray-700 text-white py-2 rounded font-semibold hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Filter logic (moved from hook)
+  const filteredOrders = useMemo(() => {
+    let filtered = filterOrders(orders, search, filterStatus);
 
-  // Sign-in prompt
-  if (!authLoading && !user?.id) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419] flex items-center justify-center p-4">
-        <div className="text-center bg-white dark:bg-gray-800 p-8 sm:p-10 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 w-full max-w-md">
-          <div className="w-16 h-16 bg-black dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 dark:text-gray-300 mb-8 text-base">
-            Please sign in to view your order history and track shipments.
-          </p>
-          <button
-            onClick={() => navigate.push('/auth/signin?returnUrl=/orders')}
-            className="w-full bg-black dark:bg-gray-700 text-white px-6 py-3 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors rounded-sm"
-          >
-            Sign In
-          </button>
-        </div>
-      </div>
-    );
-  }
+    if (filterTime !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((order) => {
+        const orderDate = new Date(order.createdAt);
 
-  // Empty state
-  const EmptyState = ({ hasFilters }: { hasFilters: boolean }) => (
-    <div className="bg-white dark:bg-gray-800 p-8 sm:p-12 rounded text-center">
-      <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-      <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white mb-2">
-        {hasFilters ? 'No orders found' : 'No orders yet'}
-      </h2>
-      <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md mx-auto text-sm sm:text-base">
-        {hasFilters ? 'Try adjusting your search or filters' : 'Start shopping to see your orders here'}
-      </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <button
-          onClick={() => navigate.push('/products')}
-          className="bg-black dark:bg-gray-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded font-semibold hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
-        >
-          Browse Products
-        </button>
-        {hasFilters && (
-          <button
-            onClick={clearFilters}
-            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-2 sm:py-3 rounded font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
-    </div>
+        switch (filterTime) {
+          case "7days":
+            return (
+              orderDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            );
+          case "30days":
+            return (
+              orderDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+            );
+          case "6months":
+            return (
+              orderDate >= new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)
+            );
+          case "2024":
+            return orderDate.getFullYear() === 2024;
+          case "2023":
+            return orderDate.getFullYear() === 2023;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [orders, search, filterStatus, filterTime]);
+
+  const hasActiveFilters =
+    search !== "" || filterStatus !== "all" || filterTime !== "all";
+
+  // Action handlers
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setFilterStatus("all");
+    setFilterTime("all");
+  }, []);
+
+  const toggleExpandOrder = useCallback((orderId: string) => {
+    setExpandedOrder((prev) => (prev === orderId ? null : orderId));
+  }, []);
+
+  const handleCancelOrder = useCallback(
+    (order: Order) => {
+      const cancelModalOrder = {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        items: order.items.map((item: OrderItem) => ({
+          name: item.name,
+          quantity: item.quantity,
+        })),
+      };
+
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.set("action", "cancel");
+      params.set("orderNumber", order.orderNumber);
+      window.history.replaceState(null, "", `/orders?${params.toString()}`);
+      setCancelModal({ isOpen: true, order: cancelModalOrder });
+    },
+    [searchParams],
   );
 
+  const handleCloseCancelModal = useCallback(() => {
+    setCancelModal({ isOpen: false });
+    setDeleteModal({ isOpen: false });
+    const params = new URLSearchParams(searchParams?.toString() || "");
+    params.delete("action");
+    params.delete("orderNumber");
+    const newUrl = params.toString()
+      ? `/orders?${params.toString()}`
+      : "/orders";
+    window.history.replaceState(null, "", newUrl);
+  }, [searchParams]);
+
+  const handleDeleteOrder = useCallback((order: Order) => {
+    if (!canDeleteOrder(order.orderStatus)) {
+      setOrderError("Only cancelled or returned orders can be deleted");
+      return;
+    }
+
+    setDeleteModal({
+      isOpen: true,
+      order: { orderNumber: order.orderNumber, totalAmount: order.totalAmount },
+    });
+  }, []);
+
+  const confirmDeleteOrder = useCallback(async () => {
+    if (!deleteModal.order) return;
+    await deleteOrderMutation.mutateAsync(deleteModal.order.orderNumber);
+    setDeleteModal({ isOpen: false });
+  }, [deleteModal.order, deleteOrderMutation]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    await refetch();
+    setLoadingMore(false);
+  }, [loadingMore, refetch]);
+
+  const handleReorder = useCallback(() => navigate.push("/cart"), [navigate]);
+  const handleDownloadInvoice = useCallback((orderNumber: string) => {
+    window.open(`/api/orders/number/${orderNumber}/invoice`, "_blank");
+  }, []);
+  const handleContactSupport = useCallback(
+    (orderNumber: string) => {
+      navigate.push(`/support?order=${orderNumber}`);
+    },
+    [navigate],
+  );
+  const handleBrowseProducts = useCallback(
+    () => navigate.push("/products"),
+    [navigate],
+  );
+
+  // Empty state
+  if (!loading && orders.length === 0) {
+    return (
+      <AuthGuard
+        redirectTo="/auth/signin?returnUrl=/orders"
+        message="Please sign in to view your orders"
+        icon={Package}
+      >
+        <EmptyState
+          icon={Package}
+          title="No orders yet"
+          description="Start shopping to see your orders here"
+          actionLabel="Browse Products"
+          actionHref="/products"
+        />
+      </AuthGuard>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Breadcrumb */}
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-          <span>Home</span>
-          <ChevronRight className="w-4 h-4" />
-          <span>My Account</span>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-gray-900 dark:text-white">My Orders</span>
+    <AuthGuard
+      redirectTo="/auth/signin?returnUrl=/orders"
+      message="Please sign in to view your orders"
+      icon={Package}
+    >
+      <PageLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <OrdersHeader
+            totalOrders={orders.length}
+            loading={loading}
+            error={error}
+          />
+
+          {/* Error Message */}
+          {orderError && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded flex justify-between items-center">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {orderError}
+              </p>
+              <button
+                onClick={() => setOrderError(null)}
+                className="text-red-600 dark:text-red-400"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <LoadingSkeleton type="list" count={5} />
+          ) : error ? (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded shadow-lg text-center">
+              <p className="text-red-600 dark:text-red-400 mb-4 text-sm">
+                {error}
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-black dark:bg-gray-700 text-white py-2 px-4 rounded font-semibold hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <OrdersFilters
+              search={search}
+              filterStatus={filterStatus}
+              filterTime={filterTime}
+              onSearchChange={setSearch}
+              onFilterStatusChange={setFilterStatus}
+              onFilterTimeChange={setFilterTime}
+            >
+              {filteredOrders.length === 0 ? (
+                <EmptyOrders
+                  hasFilters={hasActiveFilters}
+                  loading={false}
+                  onClearFilters={clearFilters}
+                  onBrowseProducts={handleBrowseProducts}
+                />
+              ) : (
+                <OrdersList
+                  orders={filteredOrders}
+                  expandedOrder={expandedOrder}
+                  hasMore={false}
+                  loadingMore={loadingMore}
+                  loading={loading}
+                  error={error}
+                  onToggleExpand={toggleExpandOrder}
+                  onCancelOrder={handleCancelOrder}
+                  onDeleteOrder={handleDeleteOrder}
+                  onReorder={handleReorder}
+                  onDownloadInvoice={handleDownloadInvoice}
+                  onContactSupport={handleContactSupport}
+                  onLoadMore={handleLoadMore}
+                  isOrderBeingDeleted={isOrderBeingDeleted}
+                />
+              )}
+            </OrdersFilters>
+          )}
         </div>
 
-        {/* Error Message */}
-        {orderError && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded flex justify-between items-center">
-            <p className="text-sm text-red-600 dark:text-red-400">{orderError}</p>
-            <button onClick={() => setOrderError(null)} className="text-red-600 dark:text-red-400">×</button>
-          </div>
+        {/* Modals */}
+        {cancelModal.isOpen && cancelModal.order && (
+          <CancelOrderModal
+            isOpen={cancelModal.isOpen}
+            onClose={handleCloseCancelModal}
+            order={cancelModal.order}
+          />
         )}
 
-        {orders.length === 0 ? (
-          <EmptyState hasFilters={false} />
-        ) : (
-          <OrdersFilters
-            search={search}
-            filterStatus={filterStatus}
-            filterTime={filterTime}
-            onSearchChange={setSearch}
-            onFilterStatusChange={setFilterStatus}
-            onFilterTimeChange={setFilterTime}
-          >
-            {filteredOrders.length === 0 ? (
-              <EmptyState hasFilters={hasActiveFilters} />
-            ) : (
-              <OrdersList
-                orders={filteredOrders}
-                expandedOrder={expandedOrder}
-                hasMore={false}
-                loadingMore={loadingMore}
-                onToggleExpand={toggleExpandOrder}
-                onCancelOrder={handleCancelOrder}
-                onDeleteOrder={handleDeleteOrder}
-                onReorder={handleReorder}
-                onDownloadInvoice={handleDownloadInvoice}
-                onContactSupport={handleContactSupport}
-                onLoadMore={handleLoadMore}
-                isOrderBeingDeleted={isOrderBeingDeleted}
-              />
-            )}
-          </OrdersFilters>
+        {deleteModal.isOpen && deleteModal.order && (
+          <DeleteConfirmModal
+            isOpen={deleteModal.isOpen}
+            onClose={handleCloseCancelModal}
+            onConfirm={confirmDeleteOrder}
+            orderNumber={deleteModal.order.orderNumber}
+            totalAmount={deleteModal.order.totalAmount}
+            isDeleting={false}
+          />
         )}
-      </div>
-
-      {/* Modals */}
-      {cancelModal.isOpen && cancelModal.order && (
-        <CancelOrderModal
-          isOpen={cancelModal.isOpen}
-          onClose={handleCloseCancelModal}
-          order={cancelModal.order}
-        />
-      )}
-
-      {deleteModal.isOpen && deleteModal.order && (
-        <DeleteConfirmModal
-          isOpen={deleteModal.isOpen}
-          onClose={handleCloseCancelModal}
-          onConfirm={confirmDeleteOrder}
-          orderNumber={deleteModal.order.orderNumber}
-          totalAmount={deleteModal.order.totalAmount}
-          isDeleting={isDeletingOrder}
-        />
-      )}
-    </div>
+      </PageLayout>
+    </AuthGuard>
   );
 }

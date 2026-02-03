@@ -9,7 +9,7 @@ export const useFilterParams = (
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const currentSlug = pathname.slice(1);
-  const isSearchPage = pathname === '/search';
+  const isSearchPage = pathname === "/search";
 
   return useMemo(() => {
     let category = "";
@@ -45,5 +45,12 @@ export const useFilterParams = (
       sort: searchParams.get("sort") || "newest",
       discount: searchParams.get("discount") || "",
     };
-  }, [searchParams, currentSlug, slugType, parentCategory, isSearchPage, slugData]);
+  }, [
+    searchParams,
+    currentSlug,
+    slugType,
+    parentCategory,
+    isSearchPage,
+    slugData,
+  ]);
 };

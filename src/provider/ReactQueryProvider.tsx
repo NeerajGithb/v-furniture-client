@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactNode, useState } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactNode, useState } from "react";
 
 const ReactQueryProvider = ({ children }: { children: ReactNode }) => {
   const [queryClient] = useState(
@@ -9,19 +9,18 @@ const ReactQueryProvider = ({ children }: { children: ReactNode }) => {
       new QueryClient({
         defaultOptions: {
           queries: {
-            retry: false, // 🔥 No retries
-            refetchOnWindowFocus: false, // 🔥 No refetch on focus
-            refetchOnReconnect: false, // 🔥 No refetch on reconnect
-            staleTime: 5 * 60 * 1000,
+            retry: false,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            staleTime: 0, // Always consider data stale
+            gcTime: 30 * 1000, // Keep in cache for 30 seconds
           },
         },
-      })
+      }),
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
 

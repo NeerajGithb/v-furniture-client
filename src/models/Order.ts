@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IOrderItem {
   productId: Schema.Types.ObjectId;
@@ -52,25 +52,25 @@ export interface IOrder extends Document {
   totalAmount: number;
   shippingAddress: IShippingAddress;
   paymentMethod:
-    | 'card'
-    | 'upi'
-    | 'netbanking'
-    | 'cod'
-    | 'wallet'
-    | 'razorpay'
-    | 'stripe'
-    | 'paytm'
-    | 'phonepe'
-    | 'googlepay';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+    | "card"
+    | "upi"
+    | "netbanking"
+    | "cod"
+    | "wallet"
+    | "razorpay"
+    | "stripe"
+    | "paytm"
+    | "phonepe"
+    | "googlepay";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   orderStatus:
-    | 'pending'
-    | 'confirmed'
-    | 'processing'
-    | 'shipped'
-    | 'delivered'
-    | 'cancelled'
-    | 'returned';
+    | "pending"
+    | "confirmed"
+    | "processing"
+    | "shipped"
+    | "delivered"
+    | "cancelled"
+    | "returned";
   trackingNumber?: string;
   expectedDeliveryDate?: Date;
   deliveredAt?: Date;
@@ -91,7 +91,7 @@ export interface IOrder extends Document {
 const OrderItemSchema = new Schema<IOrderItem>({
   productId: {
     type: Schema.Types.ObjectId,
-    ref: 'Product',
+    ref: "Product",
     required: true,
   },
   name: {
@@ -102,20 +102,16 @@ const OrderItemSchema = new Schema<IOrderItem>({
   price: {
     type: Number,
     required: true,
-    min: 0,
   },
   originalPrice: {
     type: Number,
-    min: 0,
   },
   quantity: {
     type: Number,
     required: true,
-    min: 1,
   },
   insuranceCost: {
     type: Number,
-    min: 0,
   },
   selectedVariant: {
     type: {
@@ -133,8 +129,8 @@ const OrderItemSchema = new Schema<IOrderItem>({
 
   sku: { type: String, trim: true },
   itemId: { type: String, trim: true },
-  discount: { type: Number, min: 0, default: 0 },
-  discountPercent: { type: Number, min: 0, max: 100, default: 0 },
+  discount: { type: Number, default: 0 },
+  discountPercent: { type: Number, default: 0 },
 });
 
 const ShippingAddressSchema = new Schema<IShippingAddress>({
@@ -145,7 +141,7 @@ const ShippingAddressSchema = new Schema<IShippingAddress>({
   city: { type: String, required: true, trim: true },
   state: { type: String, required: true, trim: true },
   postalCode: { type: String, required: true, trim: true },
-  country: { type: String, required: true, default: 'India' },
+  country: { type: String, required: true, default: "India" },
 });
 
 const PriceBreakdownSchema = new Schema<IPriceBreakdown>({
@@ -164,7 +160,7 @@ const OrderSchema = new Schema<IOrder>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     orderNumber: {
@@ -195,28 +191,36 @@ const OrderSchema = new Schema<IOrder>(
     paymentMethod: {
       type: String,
       enum: [
-        'card',
-        'upi',
-        'netbanking',
-        'cod',
-        'wallet',
-        'razorpay',
-        'stripe',
-        'paytm',
-        'phonepe',
-        'googlepay',
+        "card",
+        "upi",
+        "netbanking",
+        "cod",
+        "wallet",
+        "razorpay",
+        "stripe",
+        "paytm",
+        "phonepe",
+        "googlepay",
       ],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded'],
-      default: 'pending',
+      enum: ["pending", "paid", "failed", "refunded"],
+      default: "pending",
     },
     orderStatus: {
       type: String,
-      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'],
-      default: 'pending',
+      enum: [
+        "pending",
+        "confirmed",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "returned",
+      ],
+      default: "pending",
     },
     trackingNumber: {
       type: String,
@@ -266,4 +270,5 @@ OrderSchema.index({ orderStatus: 1 });
 OrderSchema.index({ paymentStatus: 1 });
 OrderSchema.index({ createdAt: -1 });
 
-export default mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+export default mongoose.models.Order ||
+  mongoose.model<IOrder>("Order", OrderSchema);

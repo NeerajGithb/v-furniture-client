@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { usePathname } from "next/navigation";
 import { useUserCounts } from "@/hooks/useUserCounts";
 import { useAuth } from "@/context/AuthContext";
 import type { MenuItem } from "./useUserDropdown";
 import { useNavigate } from "@/components/NavigationLoader/useNavigate";
 
-export const useUserDropdown = (
-  isOpen: boolean,
-  onClose: () => void,
-) => {
+export const useUserDropdown = (isOpen: boolean, onClose: () => void) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const navigate = useNavigate();
@@ -54,34 +50,22 @@ export const useUserDropdown = (
     setLoadingStates((prev) => ({ ...prev, [item.id]: true }));
     setNavigatingTo(item.id);
 
-    try {
-      await navigate.push(item.href);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      setLoadingStates((prev) => ({ ...prev, [item.id]: false }));
-      setNavigatingTo(null);
-      toast.error("Navigation failed");
-    }
+    navigate.push(item.href);
   };
 
   // Handle logout
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
 
-    try {
-      // Call logout (handles everything: server logout, query clearing, state clearing)
-      await logout();
-      
-      // Navigate to home
+    // Call logout (AuthContext handles toast messages and returns success)
+    const success = await logout();
+
+    // Only navigate if logout was successful
+    if (success) {
       navigate.push("/");
-      
-      toast.success("Logged out successfully");
-    } catch (err) {
-      console.error("Logout error:", err);
-      toast.error("Something went wrong");
-    } finally {
-      setIsLoggingOut(false);
     }
+
+    setIsLoggingOut(false);
   }, [logout, navigate]);
 
   // Handle outside clicks and keyboard

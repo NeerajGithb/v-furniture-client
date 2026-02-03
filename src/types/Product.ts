@@ -1,11 +1,3 @@
-import {
-  JSXElementConstructor,
-  Key,
-  ReactElement,
-  ReactNode,
-  ReactPortal,
-} from "react";
-
 export interface Product {
   _id: string;
   name: string;
@@ -20,6 +12,19 @@ export interface Product {
   brand?: string;
   warranty?: string;
   returnPolicy?: string;
+
+  sellerId?: {
+    _id: string;
+    businessName: string;
+    contactPerson: string;
+    address?: string;
+    rating?: number;
+    totalSales?: number;
+    totalProducts?: number;
+    verified?: boolean;
+    status?: string;
+    createdAt?: Date;
+  };
 
   categoryId?: {
     _id: string;
@@ -111,6 +116,7 @@ export interface Product {
   totalSold?: number;
   viewCount?: number;
   wishlistCount?: number;
+  totalCart?: number;
 
   categorySlug?: string;
   subcategorySlug?: string;
@@ -130,20 +136,53 @@ export interface Product {
   stock?: number;
 }
 
-export interface ProductCardData extends Pick<
-  Product,
-  | "_id"
-  | "name"
-  | "itemId"
-  | "finalPrice"
-  | "originalPrice"
-  | "discountPercent"
-  | "badge"
-  | "mainImage"
-  | "ratings"
-  | "reviews"
-  | "inStockQuantity"
-> {}
+// Minimal product data for cards/grids - only fields actually used in frontend
+export interface ProductCardData {
+  _id: string;
+  name: string;
+  finalPrice: number;
+  originalPrice: number;
+  discountPercent?: number;
+  mainImage?: {
+    url: string;
+    alt?: string;
+    publicId: string;
+  };
+  reviews?: {
+    average: number;
+    count: number;
+  };
+  inStockQuantity?: number;
+  material?: string;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
+}
+
+export interface ProductRequestFilters {
+  category?: string;
+  subcategory?: string;
+  minPrice?: number | string;
+  maxPrice?: number | string;
+  material?: string;
+  brand?: string;
+  color?: string;
+  seater?: number;
+  style?: string;
+  room?: string;
+  inStock?: boolean;
+  onSale?: boolean;
+  sort?: string;
+  page?: number;
+  limit?: number;
+  q?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
 
 export interface ProductFilters {
   categories: Array<{
@@ -213,6 +252,7 @@ export interface ProductsApiResponse {
     onSale: boolean | null;
     sort: string;
   };
+  fallback?: { used: boolean; type?: string; message?: string };
   meta: {
     fetchTime: number;
     cached: boolean;
@@ -228,6 +268,7 @@ export interface Category {
   mainImage?: {
     url: string;
     alt?: string;
+    publicId?: string;
   };
   products?: Product[];
 }
@@ -254,8 +295,6 @@ export interface IInspiration {
   slug: string;
   description: string;
   heroImage: { url: string; alt: string; publicId: string };
-  tags: string[];
-  keywords: string[];
   categories:
     | string[]
     | Array<{
@@ -264,6 +303,4 @@ export interface IInspiration {
         slug: string;
         mainImage?: { url: string; alt: string; publicId: string };
       }>;
-  createdAt: string;
-  updatedAt: string;
 }

@@ -1,66 +1,31 @@
-export const runtime = 'nodejs';
+import { NextRequest } from "next/server";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { authService } from "@/lib/domain/auth/AuthService";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
+import { setAuthCookies, clearAuthCookies } from "@/lib/security/auth";
+import { cookies } from "next/headers";
 
-import { NextResponse } from 'next/server';
-import {
-  verifyRefreshToken,
-  createAccessToken,
-  createRefreshToken,
-  setAuthCookies,
-  clearAuthCookies,
-} from '@/lib/security/auth';
-import { connectDB } from '@/lib/dbConnect';
-import User from '@/models/User';
-import { cookies } from 'next/headers';
-
-export async function POST() {
-  let response;
-
-  try {
+// Refresh authentication tokens
+export const POST = withDB(
+  withRouteErrorHandling(async (_request: NextRequest) => {
     const cookieStore = await cookies();
-    const refreshToken = cookieStore.get('vf_refresh')?.value;
+    const refreshToken = cookieStore.get("vf_refresh")?.value;
 
     if (!refreshToken) {
-      response = NextResponse.json({ error: 'No refresh token', success: false }, { status: 401 });
+      const response = ApiResponseBuilder.error("No refresh token", 401);
       clearAuthCookies(response);
       return response;
     }
 
-    const payload = await verifyRefreshToken(refreshToken);
-    if (!payload?.userId) {
-      response = NextResponse.json(
-        { error: 'Invalid refresh token', success: false },
-        { status: 401 },
-      );
-      clearAuthCookies(response);
-      return response;
-    }
+    const tokens = await authService.refreshTokens(refreshToken);
 
-    await connectDB();
+    const response = ApiResponseBuilder.success({
+      success: true,
+      message: "Tokens refreshed successfully",
+    });
 
-    const user = await User.findById(payload.userId);
-    if (!user) {
-      response = NextResponse.json({ error: 'User not found', success: false }, { status: 401 });
-      clearAuthCookies(response);
-      return response;
-    }
-
-    const newAccessToken = createAccessToken(user);
-    const newRefreshToken = createRefreshToken(user);
-
-    response = NextResponse.json(
-      { success: true, message: 'Tokens refreshed successfully' },
-      { status: 200 },
-    );
-
-    setAuthCookies(response, newAccessToken, newRefreshToken);
+    setAuthCookies(response, tokens.accessToken, tokens.refreshToken);
     return response;
-  } catch (err) {
-    console.error('❌ /refresh error:', err);
-    response = NextResponse.json(
-      { error: 'Internal server error', success: false },
-      { status: 500 },
-    );
-    clearAuthCookies(response);
-    return response;
-  }
-}
+  }),
+);

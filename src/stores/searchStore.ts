@@ -1,11 +1,11 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface SearchStore {
   recentSearches: string[];
   sessionId: string;
   currentQuery: string;
-  
+
   addRecentSearch: (query: string) => void;
   clearRecentSearches: () => void;
   generateSessionId: () => string;
@@ -17,22 +17,22 @@ export const useSearchStore = create<SearchStore>()(
     (set) => ({
       recentSearches: [],
       sessionId: `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-      currentQuery: '',
-      
+      currentQuery: "",
+
       addRecentSearch: (query: string) => {
         const trimmed = query.trim();
         if (!trimmed || trimmed.length < 2) return;
-        
-        set(state => ({
+
+        set((state) => ({
           recentSearches: [
             trimmed,
-            ...state.recentSearches.filter(s => s !== trimmed)
-          ].slice(0, 10)
+            ...state.recentSearches.filter((s) => s !== trimmed),
+          ].slice(0, 10),
         }));
       },
-      
+
       clearRecentSearches: () => set({ recentSearches: [] }),
-      
+
       generateSessionId: () => {
         const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         set({ sessionId: newSessionId });
@@ -42,11 +42,11 @@ export const useSearchStore = create<SearchStore>()(
       setQuery: (query: string) => set({ currentQuery: query }),
     }),
     {
-      name: 'search-store',
+      name: "search-store",
       partialize: (state) => ({
         recentSearches: state.recentSearches,
         currentQuery: state.currentQuery,
       }),
-    }
-  )
+    },
+  ),
 );

@@ -31,41 +31,77 @@ const CATEGORIES = [
 
 const SUBCATEGORIES = [
   // Dining Tables
-  { name: "4 Seater Dining Table", slug: "4-seater-dining-table", category: "dining-table" },
-  { name: "6 Seater Dining Table", slug: "6-seater-dining-table", category: "dining-table" },
-  { name: "Round Dining Table", slug: "round-dining-table", category: "dining-table" },
-  { name: "Extendable Dining Table", slug: "extendable-dining-table", category: "dining-table" },
-  
+  {
+    name: "4 Seater Dining Table",
+    slug: "4-seater-dining-table",
+    category: "dining-table",
+  },
+  {
+    name: "6 Seater Dining Table",
+    slug: "6-seater-dining-table",
+    category: "dining-table",
+  },
+  {
+    name: "Round Dining Table",
+    slug: "round-dining-table",
+    category: "dining-table",
+  },
+  {
+    name: "Extendable Dining Table",
+    slug: "extendable-dining-table",
+    category: "dining-table",
+  },
+
   // Beds
   { name: "King Size Bed", slug: "king-size-bed", category: "bed" },
   { name: "Queen Size Bed", slug: "queen-size-bed", category: "bed" },
   { name: "Double Bed", slug: "double-bed", category: "bed" },
   { name: "Single Bed", slug: "single-bed", category: "bed" },
   { name: "Storage Bed", slug: "storage-bed", category: "bed" },
-  
+
   // Sofas
   { name: "3 Seater Sofa", slug: "3-seater-sofa", category: "sofa" },
   { name: "2 Seater Sofa", slug: "2-seater-sofa", category: "sofa" },
   { name: "L Shape Sofa", slug: "l-shape-sofa", category: "sofa" },
   { name: "Recliner Sofa", slug: "recliner-sofa", category: "sofa" },
   { name: "Sectional Sofa", slug: "sectional-sofa", category: "sofa" },
-  
+
   // Chairs
   { name: "Dining Chair", slug: "dining-chair", category: "chair" },
   { name: "Office Chair", slug: "office-chair", category: "chair" },
   { name: "Accent Chair", slug: "accent-chair", category: "chair" },
   { name: "Bar Stool", slug: "bar-stool", category: "chair" },
-  
+
   // Coffee Tables
-  { name: "Wooden Coffee Table", slug: "wooden-coffee-table", category: "coffee-table" },
-  { name: "Glass Coffee Table", slug: "glass-coffee-table", category: "coffee-table" },
-  { name: "Round Coffee Table", slug: "round-coffee-table", category: "coffee-table" },
-  { name: "Storage Coffee Table", slug: "storage-coffee-table", category: "coffee-table" },
-  
+  {
+    name: "Wooden Coffee Table",
+    slug: "wooden-coffee-table",
+    category: "coffee-table",
+  },
+  {
+    name: "Glass Coffee Table",
+    slug: "glass-coffee-table",
+    category: "coffee-table",
+  },
+  {
+    name: "Round Coffee Table",
+    slug: "round-coffee-table",
+    category: "coffee-table",
+  },
+  {
+    name: "Storage Coffee Table",
+    slug: "storage-coffee-table",
+    category: "coffee-table",
+  },
+
   // Wardrobes
   { name: "2 Door Wardrobe", slug: "2-door-wardrobe", category: "wardrobe" },
   { name: "3 Door Wardrobe", slug: "3-door-wardrobe", category: "wardrobe" },
-  { name: "Sliding Door Wardrobe", slug: "sliding-door-wardrobe", category: "wardrobe" },
+  {
+    name: "Sliding Door Wardrobe",
+    slug: "sliding-door-wardrobe",
+    category: "wardrobe",
+  },
   { name: "Walk-in Wardrobe", slug: "walk-in-wardrobe", category: "wardrobe" },
 ];
 
@@ -88,19 +124,49 @@ const ACTION_TEMPLATES = ["open", "show", "view", "display", "see"];
 
 // Pattern templates for furniture shopping
 const CATEGORY_PATTERNS = [
-  "show me {item}", "{item}", "show {item}", "find {item}", "search {item}",
-  "i want {item}", "need {item}", "looking for {item}", "{item} available",
-  "browse {item}", "see {item}", "display {item}", "open {item}",
-  "{item} collection", "best {item}", "modern {item}", "all {item}",
-  "view {item}", "shop {item}", "buy {item}", "{item} for sale",
-  "cheap {item}", "affordable {item}", "luxury {item}", "premium {item}"
+  "show me {item}",
+  "{item}",
+  "show {item}",
+  "find {item}",
+  "search {item}",
+  "i want {item}",
+  "need {item}",
+  "looking for {item}",
+  "{item} available",
+  "browse {item}",
+  "see {item}",
+  "display {item}",
+  "open {item}",
+  "{item} collection",
+  "best {item}",
+  "modern {item}",
+  "all {item}",
+  "view {item}",
+  "shop {item}",
+  "buy {item}",
+  "{item} for sale",
+  "cheap {item}",
+  "affordable {item}",
+  "luxury {item}",
+  "premium {item}",
 ];
 
 const SUBCATEGORY_PATTERNS = [
-  "show me {item}", "{item}", "show {item}", "find {item}",
-  "i want {item}", "need {item}", "looking for {item}", "browse {item}",
-  "see {item}", "{item} available", "view {item}", "shop {item}",
-  "buy {item}", "best {item}", "{item} designs"
+  "show me {item}",
+  "{item}",
+  "show {item}",
+  "find {item}",
+  "i want {item}",
+  "need {item}",
+  "looking for {item}",
+  "browse {item}",
+  "see {item}",
+  "{item} available",
+  "view {item}",
+  "shop {item}",
+  "buy {item}",
+  "best {item}",
+  "{item} designs",
 ];
 
 // Materials for furniture
@@ -120,20 +186,48 @@ const MATERIALS = [
 
 // Colors popular in furniture
 const COLORS = [
-  "black", "white", "brown", "gray", "grey", "beige", "cream",
-  "blue", "navy", "green", "red", "yellow", "orange", "pink"
+  "black",
+  "white",
+  "brown",
+  "gray",
+  "grey",
+  "beige",
+  "cream",
+  "blue",
+  "navy",
+  "green",
+  "red",
+  "yellow",
+  "orange",
+  "pink",
 ];
 
 // Furniture styles
 const STYLES = [
-  "modern", "contemporary", "classic", "vintage", "rustic", 
-  "industrial", "minimalist", "luxury", "traditional", "scandinavian"
+  "modern",
+  "contemporary",
+  "classic",
+  "vintage",
+  "rustic",
+  "industrial",
+  "minimalist",
+  "luxury",
+  "traditional",
+  "scandinavian",
 ];
 
 // Room types for furniture context
 const ROOMS = [
-  "living room", "bedroom", "dining room", "office", "study",
-  "kitchen", "bathroom", "balcony", "outdoor", "kids room"
+  "living room",
+  "bedroom",
+  "dining room",
+  "office",
+  "study",
+  "kitchen",
+  "bathroom",
+  "balcony",
+  "outdoor",
+  "kids room",
 ];
 
 // Generate patterns dynamically
@@ -160,7 +254,7 @@ function generateOrdinalPatterns(): QuestionPattern[] {
       `number ${ord.number}`,
       `number ${ord.text}`,
       `show me the ${ord.word}`,
-      `the ${ord.word}`
+      `the ${ord.word}`,
     );
 
     patterns.push({
@@ -480,8 +574,14 @@ export function buildPredefinedQuestions(): QuestionPattern[] {
 const STATIC_PATTERNS: QuestionPattern[] = [
   {
     patterns: [
-      "hi", "hello", "hey", "good morning", "good afternoon", 
-      "good evening", "greetings", "howdy"
+      "hi",
+      "hello",
+      "hey",
+      "good morning",
+      "good afternoon",
+      "good evening",
+      "greetings",
+      "howdy",
     ],
     understanding: {
       coarse_intent: "SOCIAL",
@@ -513,8 +613,16 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "yes", "yeah", "yep", "sure", "ok", "okay", "confirm", 
-      "absolutely", "correct", "right"
+      "yes",
+      "yeah",
+      "yep",
+      "sure",
+      "ok",
+      "okay",
+      "confirm",
+      "absolutely",
+      "correct",
+      "right",
     ],
     understanding: {
       coarse_intent: "CONFIRMATION",
@@ -546,8 +654,14 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "no", "nope", "not really", "no thanks", "cancel", 
-      "back", "never mind", "nah"
+      "no",
+      "nope",
+      "not really",
+      "no thanks",
+      "cancel",
+      "back",
+      "never mind",
+      "nah",
     ],
     understanding: {
       coarse_intent: "CONFIRMATION",
@@ -579,9 +693,16 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "show another", "show another one", "view another", "see another",
-      "different one", "next one", "next option", "another option",
-      "show different", "something else"
+      "show another",
+      "show another one",
+      "view another",
+      "see another",
+      "different one",
+      "next one",
+      "next option",
+      "another option",
+      "show different",
+      "something else",
     ],
     understanding: {
       coarse_intent: "ACTION",
@@ -613,8 +734,13 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "open", "open it", "open this", "view it", "show it", 
-      "display this", "see this"
+      "open",
+      "open it",
+      "open this",
+      "view it",
+      "show it",
+      "display this",
+      "see this",
     ],
     understanding: {
       coarse_intent: "ACTION",
@@ -646,8 +772,13 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "add to cart", "add this to cart", "put in cart", "cart this", 
-      "buy this", "purchase this", "i want this"
+      "add to cart",
+      "add this to cart",
+      "put in cart",
+      "cart this",
+      "buy this",
+      "purchase this",
+      "i want this",
     ],
     understanding: {
       coarse_intent: "ACTION",
@@ -679,8 +810,13 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "view cart", "show cart", "my cart", "shopping cart", "cart", 
-      "check cart", "cart items"
+      "view cart",
+      "show cart",
+      "my cart",
+      "shopping cart",
+      "cart",
+      "check cart",
+      "cart items",
     ],
     understanding: {
       coarse_intent: "ACTION",
@@ -712,8 +848,12 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "checkout", "proceed to checkout", "buy now", "place order", 
-      "complete purchase", "pay now"
+      "checkout",
+      "proceed to checkout",
+      "buy now",
+      "place order",
+      "complete purchase",
+      "pay now",
     ],
     understanding: {
       coarse_intent: "ACTION",
@@ -745,8 +885,13 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "help", "help me", "i need help", "assist me", "support", 
-      "what can you do", "how does this work"
+      "help",
+      "help me",
+      "i need help",
+      "assist me",
+      "support",
+      "what can you do",
+      "how does this work",
     ],
     understanding: {
       coarse_intent: "HELP",
@@ -778,8 +923,12 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "cheap furniture", "affordable furniture", "budget furniture", 
-      "low price furniture", "inexpensive furniture", "discount furniture"
+      "cheap furniture",
+      "affordable furniture",
+      "budget furniture",
+      "low price furniture",
+      "inexpensive furniture",
+      "discount furniture",
     ],
     understanding: {
       coarse_intent: "BROWSING",
@@ -811,8 +960,12 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "premium furniture", "luxury furniture", "expensive furniture", 
-      "high end furniture", "designer furniture", "luxury collection"
+      "premium furniture",
+      "luxury furniture",
+      "expensive furniture",
+      "high end furniture",
+      "designer furniture",
+      "luxury collection",
     ],
     understanding: {
       coarse_intent: "BROWSING",
@@ -844,8 +997,13 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "what's new", "new arrivals", "latest furniture", "new collection", 
-      "recently added", "fresh arrivals", "new products"
+      "what's new",
+      "new arrivals",
+      "latest furniture",
+      "new collection",
+      "recently added",
+      "fresh arrivals",
+      "new products",
     ],
     understanding: {
       coarse_intent: "BROWSING",
@@ -877,8 +1035,12 @@ const STATIC_PATTERNS: QuestionPattern[] = [
   },
   {
     patterns: [
-      "best sellers", "popular furniture", "trending furniture", 
-      "most popular", "top rated", "customer favorites"
+      "best sellers",
+      "popular furniture",
+      "trending furniture",
+      "most popular",
+      "top rated",
+      "customer favorites",
     ],
     understanding: {
       coarse_intent: "BROWSING",
@@ -924,13 +1086,13 @@ export function getCachedPatternsSet(): Set<string> {
   if (CACHED_PATTERNS_SET === null) {
     const patterns = new Set<string>();
     const questions = getCachedPredefinedQuestions();
-    
+
     for (const question of questions) {
       for (const pattern of question.patterns) {
         patterns.add(pattern.toLowerCase().trim());
       }
     }
-    
+
     CACHED_PATTERNS_SET = patterns;
   }
   return CACHED_PATTERNS_SET;
@@ -940,14 +1102,14 @@ export function getCachedPatternMap(): Map<string, UnderstandingResult> {
   if (CACHED_PATTERN_MAP === null) {
     const patternMap = new Map<string, UnderstandingResult>();
     const questions = getCachedPredefinedQuestions();
-    
+
     for (const question of questions) {
       for (const pattern of question.patterns) {
         const normalizedPattern = pattern.toLowerCase().trim();
         patternMap.set(normalizedPattern, { ...question.understanding });
       }
     }
-    
+
     CACHED_PATTERN_MAP = patternMap;
   }
   return CACHED_PATTERN_MAP;
@@ -955,14 +1117,13 @@ export function getCachedPatternMap(): Map<string, UnderstandingResult> {
 
 // Fast lookup function for exact pattern matching
 export function findExactMatch(message: string): UnderstandingResult | null {
-  const normalized = message.toLowerCase().trim().replace(/[?,!.;]+$/, "");
+  const normalized = message
+    .toLowerCase()
+    .trim()
+    .replace(/[?,!.;]+$/, "");
   const patternMap = getCachedPatternMap();
   const result = patternMap.get(normalized);
-  
-  if (result) {
-    console.log(`[PredefinedQuestions] 🎯 Exact match: "${normalized}"`);
-  }
-  
+
   return result || null;
 }
 

@@ -3,7 +3,7 @@
 export function getQuickResponse(
   action: string,
   activeProduct?: any,
-  contextSource?: string
+  contextSource?: string,
 ): string | null {
   // Navigation actions
   if (action === "navigate_home") return "Taking you home 🏠";
@@ -83,7 +83,7 @@ export function getQuickResponse(
 
 export function getBrowsingResponse(
   count: number,
-  categoryName: string
+  categoryName: string,
 ): string {
   if (count === 0) {
     return "No matches found. Try different keywords or browse our categories! 🔍";

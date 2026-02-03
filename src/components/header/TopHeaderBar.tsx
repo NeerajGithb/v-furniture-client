@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { NavLink } from "../NavigationLoader";
 import { usePathname } from "next/navigation";
@@ -11,10 +11,11 @@ const TopHeaderBar = () => {
   return (
     <div className="w-full bg-(--brand) dark:bg-[#1a1614] text-(--brand-text) dark:text-gray-200 text-[11px] border-b border-(--brand-dark) dark:border-gray-700">
       <div className="max-w-400 mx-auto px-4 h-9 flex items-center justify-between gap-6">
-
         {/* Left */}
         <div className="flex items-center gap-3 truncate">
-          <span className="text-(--brand-muted) dark:text-gray-400">Nearest Store:</span>
+          <span className="text-(--brand-muted) dark:text-gray-400">
+            Nearest Store:
+          </span>
           <button className="font-medium hover:text-white dark:hover:text-white transition-colors">
             U.I. Store Vikas Marg
           </button>
@@ -30,9 +31,9 @@ const TopHeaderBar = () => {
           <NavLink
             href="/orders"
             className={`transition-colors ${
-              isActive('/orders') 
-                ? 'text-white dark:text-white font-semibold' 
-                : 'hover:text-white dark:hover:text-white'
+              isActive("/orders")
+                ? "text-white dark:text-white font-semibold"
+                : "hover:text-white dark:hover:text-white"
             }`}
           >
             Track Order
@@ -41,9 +42,9 @@ const TopHeaderBar = () => {
           <NavLink
             href="/inspiration"
             className={`transition-colors ${
-              isActive('/inspiration') 
-                ? 'text-white dark:text-white font-semibold' 
-                : 'hover:text-white dark:hover:text-white'
+              isActive("/inspiration")
+                ? "text-white dark:text-white font-semibold"
+                : "hover:text-white dark:hover:text-white"
             }`}
           >
             Inspiration
@@ -52,15 +53,14 @@ const TopHeaderBar = () => {
           <NavLink
             href="/support"
             className={`transition-colors ${
-              isActive('/support') 
-                ? 'text-white dark:text-white font-semibold' 
-                : 'hover:text-white dark:hover:text-white'
+              isActive("/support")
+                ? "text-white dark:text-white font-semibold"
+                : "hover:text-white dark:hover:text-white"
             }`}
           >
             Support
           </NavLink>
         </div>
-
       </div>
     </div>
   );

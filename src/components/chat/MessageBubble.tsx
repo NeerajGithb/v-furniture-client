@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { Message, useChatStore } from '@/stores/chatStore';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { IoArrowUndo } from 'react-icons/io5';
-import ProductRail from '../product/ProductRail';
-import StructuredProductCard from './StructuredProductCard';
-import { useNavigate } from '../NavigationLoader';
+import { Message, useChatStore } from "@/stores/chatStore";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { IoArrowUndo } from "react-icons/io5";
+import ProductRail from "../product/ProductRail";
+import StructuredProductCard from "./StructuredProductCard";
+import { useNavigate } from "../NavigationLoader";
 
 interface MessageBubbleProps {
   message: Message;
@@ -22,7 +22,7 @@ export default function MessageBubble({
   const navigate = useNavigate();
   const revertLastMessage = useChatStore((s) => s.revertLastMessage);
 
-  const isUser = message.role === 'user';
+  const isUser = message.role === "user";
   const shouldAnimate = message.isNew && !isUser;
   const isLoading = message.isLoading || false;
 
@@ -33,7 +33,7 @@ export default function MessageBubble({
   const hasStructuredData = !!message.structuredData;
 
   const [displayedText, setDisplayedText] = useState(
-    shouldAnimate ? '' : message.content
+    shouldAnimate ? "" : message.content,
   );
 
   useEffect(() => {
@@ -59,24 +59,26 @@ export default function MessageBubble({
 
   const formatRegularText = (text: string) => {
     let formatted = text;
-    formatted = formatted.replace(/\*\*/g, '');
-    formatted = formatted.replace(/•\s*/g, '');
+    formatted = formatted.replace(/\*\*/g, "");
+    formatted = formatted.replace(/•\s*/g, "");
     formatted = formatted.replace(
       /([₹$€£¥₽])\s*([\d,]+)/g,
-      '<span class="font-bold whitespace-nowrap" style="color: var(--brand-strong)">$1$2</span>'
+      '<span class="font-bold whitespace-nowrap" style="color: var(--brand-strong)">$1$2</span>',
     );
     return formatted.trim();
   };
 
-  const cleanText = displayedText.replace(/\s+/g, ' ').trim();
+  const cleanText = displayedText.replace(/\s+/g, " ").trim();
   const animateStructuredCard = shouldAnimate && displayedText.length > 10;
 
   return (
     <div
-      className={`w-full mb-3 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+      className={`w-full mb-3 flex flex-col ${isUser ? "items-end" : "items-start"}`}
     >
       {!isUser && (
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 ml-1">Haven</p>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 ml-1">
+          Haven
+        </p>
       )}
 
       {/* ---------- CATEGORIES ---------- */}
@@ -88,8 +90,8 @@ export default function MessageBubble({
               onClick={() => navigate.push(`/categories/${category.slug}`)}
               className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border text-xs font-medium rounded"
               style={{
-                borderColor: 'var(--brand-muted)',
-                color: 'var(--brand-strong)',
+                borderColor: "var(--brand-muted)",
+                color: "var(--brand-strong)",
               }}
             >
               {category.name}
@@ -116,13 +118,14 @@ export default function MessageBubble({
       )}
 
       {/* ---------- CHAT BUBBLE ---------- */}
-      <div className={`${isUser ? 'max-w-[78%]' : 'max-w-[75%]'}`}>
+      <div className={`${isUser ? "max-w-[78%]" : "max-w-[75%]"}`}>
         <div
           className={`
             px-4 py-3 text-[13px] leading-tight min-h-10
-            ${isUser
-              ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-2xl rounded-br-sm'
-              : 'bg-linear-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-sm'
+            ${
+              isUser
+                ? "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-2xl rounded-br-sm"
+                : "bg-linear-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-sm"
             }
           `}
         >
@@ -174,9 +177,9 @@ export default function MessageBubble({
         <div
           className="mt-2 px-3 py-1.5 border text-xs rounded"
           style={{
-            backgroundColor: 'var(--brand-text)',
-            borderColor: 'var(--brand-muted)',
-            color: 'var(--brand-strong)',
+            backgroundColor: "var(--brand-text)",
+            borderColor: "var(--brand-muted)",
+            color: "var(--brand-strong)",
           }}
         >
           {message.navigation.message}

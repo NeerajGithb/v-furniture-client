@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ErrorMessageProps {
   message: string;
@@ -8,7 +8,11 @@ interface ErrorMessageProps {
   className?: string;
 }
 
-const ErrorMessage = ({ message, onClose, className = '' }: ErrorMessageProps) => {
+const ErrorMessage = ({
+  message,
+  onClose,
+  className = "",
+}: ErrorMessageProps) => {
   return (
     <AnimatePresence mode="wait">
       {message && (

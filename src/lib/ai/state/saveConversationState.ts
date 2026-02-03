@@ -5,7 +5,7 @@ import { createInitialConversationState } from "./createInitialConversationState
 
 export async function saveConversationState(
   conversationId: string,
-  partial: Partial<ConversationState>
+  partial: Partial<ConversationState>,
 ) {
   const key = `conv:${conversationId}`;
 

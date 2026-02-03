@@ -1,19 +1,5 @@
 import { create } from "zustand";
-
-export interface User {
-  id: string;
-  _id?: string; // MongoDB ID compatibility
-  name: string;
-  email: string;
-  phone?: string;
-  photoURL?: string;
-  createdAt: string;
-}
-
-export interface ProfileFormData {
-  name: string;
-  phone: string;
-}
+import { User, ProfileFormData } from "@/types/user";
 
 interface ProfileState {
   editing: boolean;

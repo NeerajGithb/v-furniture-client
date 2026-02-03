@@ -1,8 +1,10 @@
+import { ProductCardData } from "@/types/Product";
+
 // Core search types for the new search system
 
 export interface SearchContext {
   region?: string;
-  device?: 'mobile' | 'desktop' | 'tablet';
+  device?: "mobile" | "desktop" | "tablet";
   userId?: string;
   sessionId?: string;
 }
@@ -30,7 +32,13 @@ export interface SearchFilters {
   inStock?: boolean;
   onSale?: boolean;
   rating?: number;
-  sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'rating' | 'popularity';
+  sortBy?:
+    | "relevance"
+    | "price_asc"
+    | "price_desc"
+    | "newest"
+    | "rating"
+    | "popularity";
 }
 
 export interface NormalizedQuery {
@@ -42,7 +50,7 @@ export interface NormalizedQuery {
 }
 
 export interface SearchIntent {
-  type: 'product' | 'category' | 'brand' | 'generic';
+  type: "product" | "category" | "brand" | "generic";
   confidence: number;
   entities: {
     products?: string[];
@@ -56,7 +64,7 @@ export interface SearchIntent {
 export interface SearchCandidate {
   productId: string;
   score: number;
-  matchType: 'exact' | 'partial' | 'fuzzy' | 'semantic';
+  matchType: "exact" | "partial" | "fuzzy" | "semantic";
   matchedFields: string[];
 }
 
@@ -74,12 +82,7 @@ export interface RankedProduct {
 }
 
 export interface SearchResult {
-  query: NormalizedQuery;
-  intent: SearchIntent;
-  products: any[]; // Full product objects
-  facets: SearchFacets;
-  categories?: any[]; // Available categories for filtering
-  subcategories?: any[]; // Available subcategories for filtering
+  products: ProductCardData[]; // Minimal product data for cards
   pagination: {
     page: number;
     limit: number;
@@ -87,10 +90,12 @@ export interface SearchResult {
     hasMore: boolean;
   };
   metadata: {
-    searchTime: number;
     totalCandidates: number;
     cacheHit: boolean;
-    debug?: any;
+    fallback?: boolean;
+    subcategoryNotFound?: boolean;
+    message?: string;
+    error?: string;
   };
 }
 
@@ -109,11 +114,23 @@ export interface FacetValue {
   selected: boolean;
 }
 
+export interface AutocompleteItem {
+  text: string;
+  type:
+    | "exact"
+    | "product"
+    | "category"
+    | "subcategory"
+    | "brand"
+    | "material"
+    | "color"
+    | "inspiration";
+  image?: string;
+  category?: string;
+}
+
 export interface AutocompleteResult {
-  suggestions: string[];
-  trending: string[];
-  products: any[];
-  categories: any[];
+  suggestions: AutocompleteItem[];
 }
 
 export interface SearchAnalytics {
@@ -121,7 +138,18 @@ export interface SearchAnalytics {
   userId?: string;
   sessionId: string;
   timestamp: number;
-  action: 'search' | 'click' | 'add_to_cart' | 'purchase' | 'add_to_wishlist' | 'view_product' | 'filter_applied' | 'sort_changed' | 'page_changed' | 'no_results' | 'zero_click';
+  action:
+    | "search"
+    | "click"
+    | "add_to_cart"
+    | "purchase"
+    | "add_to_wishlist"
+    | "view_product"
+    | "filter_applied"
+    | "sort_changed"
+    | "page_changed"
+    | "no_results"
+    | "zero_click";
   productId?: string;
   position?: number;
   metadata?: Record<string, any>;

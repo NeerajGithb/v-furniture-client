@@ -23,7 +23,7 @@ export interface PaymentValidation {
  */
 export async function validateOrderForPayment(
   orderId: string,
-  userId: string
+  userId: string,
 ): Promise<PaymentValidation> {
   const order = await Order.findOne({ _id: orderId, userId });
 
@@ -42,7 +42,7 @@ export async function validateOrderForPayment(
  * Check for existing payment (idempotency)
  */
 export async function checkExistingPayment(
-  orderId: string
+  orderId: string,
 ): Promise<{ exists: boolean; payment?: any }> {
   const payment = await Payment.findOne({ orderId });
   return { exists: !!payment, payment };
@@ -54,7 +54,7 @@ export async function checkExistingPayment(
 export async function processCODPayment(
   order: any,
   userId: string,
-  existingPayment?: any
+  existingPayment?: any,
 ): Promise<{ success: boolean; payment: any }> {
   let payment;
 
@@ -76,9 +76,9 @@ export async function processCODPayment(
     });
   }
 
-  // For COD, mark order as confirmed immediately
+  // For COD, keep order as pending (admin will confirm)
   order.paymentStatus = "pending";
-  order.orderStatus = "confirmed";
+  order.orderStatus = "pending"; // Changed from "confirmed" to "pending"
   order.expectedDeliveryDate = calculateExpectedDeliveryDate();
   await order.save();
 
@@ -91,7 +91,7 @@ export async function processCODPayment(
 export async function createRazorpayOrder(
   order: any,
   userId: string,
-  existingPayment?: any
+  existingPayment?: any,
 ): Promise<{
   success: boolean;
   error?: string;
@@ -143,7 +143,6 @@ export async function createRazorpayOrder(
 
     return { success: true, razorpayOrder, payment };
   } catch (error) {
-    console.error("Razorpay API error:", error);
     return {
       success: false,
       error: "Failed to initialize payment. Please try again.",
@@ -157,7 +156,7 @@ export async function createRazorpayOrder(
 export function verifyRazorpaySignature(
   razorpayOrderId: string,
   razorpayPaymentId: string,
-  razorpaySignature: string
+  razorpaySignature: string,
 ): boolean {
   const generatedSignature = crypto
     .createHmac("sha256", RAZORPAY_SECRET)
@@ -174,7 +173,7 @@ export async function processSuccessfulPayment(
   payment: any,
   razorpayPaymentId: string,
   razorpayOrderId: string,
-  razorpaySignature: string
+  razorpaySignature: string,
 ): Promise<{ success: boolean; order: any }> {
   // Update payment status
   payment.status = "success";
@@ -202,7 +201,7 @@ export async function processSuccessfulPayment(
  */
 export async function processFailedPayment(
   payment: any,
-  reason: string
+  reason: string,
 ): Promise<void> {
   payment.status = "failed";
   payment.failureReason = reason;
@@ -219,7 +218,12 @@ export function validatePaymentVerificationData(data: any): {
   const { paymentId, razorpayPaymentId, razorpayOrderId, razorpaySignature } =
     data;
 
-  if (!paymentId || !razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+  if (
+    !paymentId ||
+    !razorpayPaymentId ||
+    !razorpayOrderId ||
+    !razorpaySignature
+  ) {
     return { valid: false, error: "Missing payment verification data" };
   }
 
@@ -231,7 +235,7 @@ export function validatePaymentVerificationData(data: any): {
  */
 export async function getPaymentByIdAndUser(
   paymentId: string,
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; error?: string; payment?: any }> {
   const payment = await Payment.findOne({
     paymentId,

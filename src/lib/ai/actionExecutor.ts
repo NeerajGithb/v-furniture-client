@@ -2,8 +2,6 @@
 
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
-const LOG_PREFIX = "[ActionExecutor]";
-
 interface ActionIntent {
   action: string;
   category: string | null;
@@ -19,8 +17,6 @@ export async function executeAction(
 ): Promise<void> {
   const { action, category, subcategory, productSlug, productId, filters } =
     intent;
-
-  console.log(`${LOG_PREFIX} ${action}`);
 
   const buildSearchUrl = () => {
     const params = new URLSearchParams();
@@ -47,7 +43,6 @@ export async function executeAction(
   try {
     if (action === "view_product" && productSlug && productId) {
       const url = `/products/${productSlug}-${productId}`;
-      console.log(`${LOG_PREFIX} → ${url}`);
       navigation.push(url);
       return;
     }
@@ -59,7 +54,6 @@ export async function executeAction(
     ) {
       const params = buildSearchUrl();
       const url = `/search${params.toString() ? `?${params}` : ""}`;
-      console.log(`${LOG_PREFIX} → ${url}`);
       navigation.push(url);
       return;
     }
@@ -72,9 +66,5 @@ export async function executeAction(
     ) {
       return;
     }
-
-    console.log(`${LOG_PREFIX} Unknown action: ${action}`);
-  } catch (error: any) {
-    console.error(`${LOG_PREFIX} Error: ${error.message}`);
-  }
+  } catch (error: any) {}
 }

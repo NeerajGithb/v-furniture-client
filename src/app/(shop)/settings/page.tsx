@@ -1,28 +1,26 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAuthStore } from '@/stores/authStore';
-import { useNavigate, NavLink } from '@/components/NavigationLoader';
-import { 
-  User, 
-  Shield, 
-  Bell, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Smartphone, 
-  AlertCircle, 
-  Check, 
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate, NavLink } from "@/components/NavigationLoader";
+import {
+  User,
+  Shield,
+  Bell,
+  Lock,
+  Eye,
+  EyeOff,
+  Smartphone,
+  AlertCircle,
+  Check,
   X,
   Database,
-  Trash2
-} from 'lucide-react';
-import Loading from '@/components/ui/Loader';
+  Trash2,
+} from "lucide-react";
+import Loading from "@/components/ui/Loader";
 
 export default function SettingsPage() {
-  const { user } = useCurrentUser();
-  const { authLoading } = useAuthStore();
+  const { user, authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Security states
@@ -57,7 +55,7 @@ export default function SettingsPage() {
             Please sign in to access your account settings.
           </p>
           <button
-            onClick={() => navigate.push('/auth/signin?returnUrl=/settings')}
+            onClick={() => navigate.push("/auth/signin?returnUrl=/settings")}
             className="w-full bg-black dark:bg-gray-700 text-white px-6 py-3 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors rounded-sm"
           >
             Sign In
@@ -71,7 +69,9 @@ export default function SettingsPage() {
     <div className="space-y-6 p-2 sm:p-4 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Account Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          Account Settings
+        </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Manage your account preferences, security, and privacy settings
         </p>
@@ -79,23 +79,37 @@ export default function SettingsPage() {
 
       {/* Account Overview */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Account Overview</h2>
+        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">
+          Account Overview
+        </h2>
         <div className="space-y-4">
           <div>
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name</p>
-            <p className="text-sm text-gray-900 dark:text-white">{user?.name || 'Not set'}</p>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Name
+            </p>
+            <p className="text-sm text-gray-900 dark:text-white">
+              {user?.name || "Not set"}
+            </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</p>
-            <p className="text-sm text-gray-900 dark:text-white">{user?.email}</p>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Email
+            </p>
+            <p className="text-sm text-gray-900 dark:text-white">
+              {user?.email}
+            </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</p>
-            <p className="text-sm text-gray-900 dark:text-white">{user?.phone || 'Not set'}</p>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Phone
+            </p>
+            <p className="text-sm text-gray-900 dark:text-white">
+              {user?.phone || "Not set"}
+            </p>
           </div>
         </div>
         <button
-          onClick={() => navigate.push('/profile')}
+          onClick={() => navigate.push("/profile")}
           className="mt-5 text-sm text-gray-900 dark:text-white font-medium hover:text-gray-700 dark:hover:text-gray-300"
         >
           Edit Profile →
@@ -107,8 +121,12 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3 mb-4">
           <Lock className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Password</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Update your password regularly to keep your account secure</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Password
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Update your password regularly to keep your account secure
+            </p>
           </div>
         </div>
 
@@ -122,7 +140,9 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Change Your Password</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Change Your Password
+              </h3>
               <button
                 onClick={() => setShowPasswordForm(false)}
                 className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
@@ -132,10 +152,12 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Current Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Current Password
+              </label>
               <div className="relative">
                 <input
-                  type={showCurrentPassword ? 'text' : 'password'}
+                  type={showCurrentPassword ? "text" : "password"}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-gray-900 dark:focus:border-gray-500"
                   placeholder="Enter current password"
                 />
@@ -144,16 +166,22 @@ export default function SettingsPage() {
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
-                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showCurrentPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                New Password
+              </label>
               <div className="relative">
                 <input
-                  type={showNewPassword ? 'text' : 'password'}
+                  type={showNewPassword ? "text" : "password"}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-gray-900 dark:focus:border-gray-500"
                   placeholder="Enter new password"
                 />
@@ -162,14 +190,22 @@ export default function SettingsPage() {
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
-                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showNewPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Must be at least 8 characters with letters and numbers</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Must be at least 8 characters with letters and numbers
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Confirm New Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Confirm New Password
+              </label>
               <input
                 type="password"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-gray-900 dark:focus:border-gray-500"
@@ -199,19 +235,23 @@ export default function SettingsPage() {
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white">Two-Factor Authentication</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Add an extra layer of security to your account</p>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                  Two-Factor Authentication
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  Add an extra layer of security to your account
+                </p>
               </div>
               <button
                 onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  twoFactorEnabled ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${twoFactorEnabled
+                  ? "bg-gray-900 dark:bg-gray-700"
+                  : "bg-gray-300 dark:bg-gray-600"
+                  }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${twoFactorEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
                 />
               </button>
             </div>
@@ -223,8 +263,13 @@ export default function SettingsPage() {
             <div className="flex items-start gap-2">
               <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-green-900 dark:text-green-300">Two-factor authentication is enabled</p>
-                <p className="text-xs text-green-700 dark:text-green-400 mt-1">You'll need to enter a code from your authenticator app when signing in</p>
+                <p className="text-sm font-medium text-green-900 dark:text-green-300">
+                  Two-factor authentication is enabled
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                  You'll need to enter a code from your authenticator app when
+                  signing in
+                </p>
               </div>
             </div>
           </div>
@@ -236,46 +281,58 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3 mb-4">
           <Shield className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Privacy Settings</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Control how your data is used and shared</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Privacy Settings
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Control how your data is used and shared
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Activity Tracking</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Allow us to track your activity to improve your experience</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Activity Tracking
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Allow us to track your activity to improve your experience
+              </p>
             </div>
             <button
               onClick={() => setActivityTracking(!activityTracking)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                activityTracking ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${activityTracking
+                ? "bg-gray-900 dark:bg-gray-700"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  activityTracking ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${activityTracking ? "translate-x-6" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
 
           <div className="flex items-center justify-between py-3">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Data Sharing</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Share anonymized data with partners to improve services</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Data Sharing
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Share anonymized data with partners to improve services
+              </p>
             </div>
             <button
               onClick={() => setDataSharing(!dataSharing)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                dataSharing ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${dataSharing
+                ? "bg-gray-900 dark:bg-gray-700"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  dataSharing ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${dataSharing ? "translate-x-6" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
@@ -287,83 +344,111 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3 mb-4">
           <Bell className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Notifications</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Choose what notifications you want to receive</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Notifications
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Choose what notifications you want to receive
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Marketing Emails</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Receive updates about new products and offers</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Marketing Emails
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Receive updates about new products and offers
+              </p>
             </div>
             <button
               onClick={() => setMarketingEmails(!marketingEmails)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                marketingEmails ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${marketingEmails
+                ? "bg-gray-900 dark:bg-gray-700"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  marketingEmails ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${marketingEmails ? "translate-x-6" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
 
           <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Push Notifications</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Get notified about order updates and promotions</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Push Notifications
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Get notified about order updates and promotions
+              </p>
             </div>
             <button
               onClick={() => setPushNotifications(!pushNotifications)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                pushNotifications ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${pushNotifications
+                ? "bg-gray-900 dark:bg-gray-700"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  pushNotifications ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${pushNotifications ? "translate-x-6" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
 
           <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">SMS Notifications</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Receive text messages for important updates</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                SMS Notifications
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Receive text messages for important updates
+              </p>
             </div>
             <button
               onClick={() => setSmsNotifications(!smsNotifications)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                smsNotifications ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${smsNotifications
+                ? "bg-gray-900 dark:bg-gray-700"
+                : "bg-gray-300 dark:bg-gray-600"
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  smsNotifications ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${smsNotifications ? "translate-x-6" : "translate-x-1"
+                  }`}
               />
             </button>
           </div>
 
           <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Order Updates</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Important notifications about your orders</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Order Updates
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Important notifications about your orders
+              </p>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Always On</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              Always On
+            </span>
           </div>
 
           <div className="flex items-center justify-between py-3">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Security Alerts</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Notifications about account security</p>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                Security Alerts
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Notifications about account security
+              </p>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Always On</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              Always On
+            </span>
           </div>
         </div>
       </div>
@@ -373,8 +458,12 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3 mb-4">
           <Database className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Data Management</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Manage your personal data</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Data Management
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Manage your personal data
+            </p>
           </div>
         </div>
 
@@ -382,11 +471,17 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3">
             <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
             <div className="text-left">
-              <p className="text-sm font-medium text-red-900 dark:text-red-300">Delete Account</p>
-              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">Permanently delete your account and all data</p>
+              <p className="text-sm font-medium text-red-900 dark:text-red-300">
+                Delete Account
+              </p>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">
+                Permanently delete your account and all data
+              </p>
             </div>
           </div>
-          <span className="text-red-600 dark:text-red-400 group-hover:translate-x-0.5 transition-transform">→</span>
+          <span className="text-red-600 dark:text-red-400 group-hover:translate-x-0.5 transition-transform">
+            →
+          </span>
         </button>
       </div>
 
@@ -395,11 +490,17 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Your Privacy Matters</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              Your Privacy Matters
+            </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-              We are committed to protecting your privacy and being transparent about how we use your data.
+              We are committed to protecting your privacy and being transparent
+              about how we use your data.
             </p>
-            <NavLink href="/privacy-policy" className="text-sm text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 font-medium underline">
+            <NavLink
+              href="/privacy-policy"
+              className="text-sm text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 font-medium underline"
+            >
               Read our full Privacy Policy →
             </NavLink>
           </div>
@@ -411,7 +512,9 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-gray-700 dark:text-gray-300 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Security Tips</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              Security Tips
+            </h3>
             <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <li>• Use a strong, unique password for your account</li>
               <li>• Enable two-factor authentication for extra security</li>

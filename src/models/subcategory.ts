@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ISubCategory extends Document {
   name: string;
@@ -20,7 +20,7 @@ const SubCategorySchema: Schema = new Schema(
     },
     categoryId: {
       type: Schema.Types.ObjectId,
-      ref: 'Category',
+      ref: "Category",
       required: true,
     },
     slug: {
@@ -42,7 +42,7 @@ const SubCategorySchema: Schema = new Schema(
     },
     description: {
       type: String,
-      default: '',
+      default: "",
     },
   },
   {
@@ -51,12 +51,12 @@ const SubCategorySchema: Schema = new Schema(
   },
 );
 
-SubCategorySchema.virtual('category', {
-  ref: 'Category',
-  localField: 'categoryId',
-  foreignField: '_id',
+SubCategorySchema.virtual("category", {
+  ref: "Category",
+  localField: "categoryId",
+  foreignField: "_id",
   justOne: true,
 });
 
 export default mongoose.models.SubCategory ||
-  mongoose.model<ISubCategory>('SubCategory', SubCategorySchema);
+  mongoose.model<ISubCategory>("SubCategory", SubCategorySchema);

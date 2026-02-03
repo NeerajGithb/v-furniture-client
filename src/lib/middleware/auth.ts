@@ -17,7 +17,7 @@ export interface AuthenticatedRequest extends NextRequest {
 }
 
 async function tryRefreshToken(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<{ user: AuthenticatedUser | null; newAccessToken?: string }> {
   try {
     const refreshToken = request.cookies.get("vf_refresh")?.value;
@@ -65,7 +65,7 @@ export async function authenticateUser(request: NextRequest): Promise<{
         user: null,
         error: NextResponse.json(
           { error: "Unauthorized", success: false },
-          { status: 401 }
+          { status: 401 },
         ),
       };
     }
@@ -86,7 +86,7 @@ export async function authenticateUser(request: NextRequest): Promise<{
         user: null,
         error: NextResponse.json(
           { error: "Unauthorized", success: false },
-          { status: 401 }
+          { status: 401 },
         ),
       };
     }
@@ -109,7 +109,7 @@ export async function authenticateUser(request: NextRequest): Promise<{
       user: null,
       error: NextResponse.json(
         { error: "Authentication failed", success: false },
-        { status: 401 }
+        { status: 401 },
       ),
     };
   }
@@ -120,45 +120,38 @@ export function withAuth<T extends any[]>(
     request: NextRequest,
     user: AuthenticatedUser,
     ...args: T
-  ) => Promise<NextResponse>
+  ) => Promise<NextResponse>,
 ) {
   return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
-    try {
-      const { user, error, newAccessToken } = await authenticateUser(request);
+    const { user, error, newAccessToken } = await authenticateUser(request);
 
-      if (error) {
-        return error;
-      }
+    if (error) {
+      return error;
+    }
 
-      if (!user) {
-        return NextResponse.json(
-          { error: "Authentication required", success: false },
-          { status: 401 }
-        );
-      }
-
-      const response = await handler(request, user, ...args);
-
-      if (newAccessToken) {
-        const isProduction = process.env.NODE_ENV === "production";
-        response.cookies.set({
-          name: "vf_access",
-          value: newAccessToken,
-          httpOnly: true,
-          secure: isProduction,
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 15,
-        });
-      }
-
-      return response;
-    } catch (error) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Internal server error", success: false },
-        { status: 500 }
+        { error: "Authentication required", success: false },
+        { status: 401 },
       );
     }
+
+    const response = await handler(request, user, ...args);
+
+    if (newAccessToken) {
+      const isProduction = process.env.NODE_ENV === "production";
+      response.cookies.set({
+        name: "vf_access",
+        value: newAccessToken,
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 15,
+      });
+    }
+
+    return response;
   };
 }
 
@@ -178,17 +171,10 @@ export function withOptionalAuth<T extends any[]>(
     request: NextRequest,
     user: AuthenticatedUser | null,
     ...args: T
-  ) => Promise<NextResponse>
+  ) => Promise<NextResponse>,
 ) {
   return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
-    try {
-      const { user } = await optionalAuth(request);
-      return handler(request, user, ...args);
-    } catch (error) {
-      return NextResponse.json(
-        { error: "Internal server error", success: false },
-        { status: 500 }
-      );
-    }
+    const { user } = await optionalAuth(request);
+    return handler(request, user, ...args);
   };
 }

@@ -1,4 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import {
+  DatabaseUnavailableError,
+  DatabaseConfigurationError,
+} from "./domain/shared/InfrastructureError";
 
 let cached = (global as any).mongoose;
 
@@ -7,38 +11,61 @@ if (!cached) {
 }
 
 export async function connectDB() {
-  if (cached.conn) {
+  // Return existing connection if available
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
   const MONGODB_URI = process.env.MONGODB_URI;
   if (!MONGODB_URI) {
-    throw new Error('❌ MONGODB_URI is missing in environment variables');
+    throw new DatabaseConfigurationError(
+      "MONGODB_URI is missing in environment variables",
+    );
   }
 
   if (!cached.promise) {
     const options: mongoose.ConnectOptions = {
       bufferCommands: false,
-
       serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
-
       family: 4,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     };
 
     cached.promise = mongoose
       .connect(MONGODB_URI, options)
       .then((mongooseInstance) => {
-        if (mongoose.connection.readyState === 1) {
-        }
         return mongooseInstance;
       })
       .catch((err) => {
-        console.error('❌ MongoDB connection failed:', err.message);
-        throw err;
+        cached.promise = null;
+
+        throw new DatabaseUnavailableError(
+          "Failed to connect to MongoDB database",
+          err,
+        );
       });
   }
 
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (error) {
+    cached.promise = null;
+
+    // Re-throw infrastructure errors as-is
+    if (
+      error instanceof DatabaseUnavailableError ||
+      error instanceof DatabaseConfigurationError
+    ) {
+      throw error;
+    }
+
+    throw new DatabaseUnavailableError(
+      "Database connection failed during initialization",
+      error as Error,
+    );
+  }
+
   return cached.conn;
 }

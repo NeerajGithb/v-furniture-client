@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { withAuth, AuthenticatedUser } from "@/lib/middleware/auth";
-import Order from "@/models/Order";
-import Payment from "@/models/Payment";
-import { connectDB } from "@/lib/dbConnect";
-import { z } from "zod";
-import product from "@/models/product";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { orderService } from "@/lib/domain/orders/OrderService";
 import {
-  getCached,
-  setCache,
-  invalidateCacheByPrefix,
-  CACHE_TTL,
-} from "@/lib/cache";
+  OrderIdSchema,
+  UpdateOrderSchema,
+} from "@/lib/domain/orders/OrderSchemas";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
 
 interface RouteParams {
   params: Promise<{
@@ -18,442 +15,77 @@ interface RouteParams {
   }>;
 }
 
-const orderIdSchema = z.string().min(1, "Order ID is required");
-
-function formatCompleteOrderResponse(order: any, payment?: any) {
-  return {
-    _id: order._id,
-    orderNumber: order.orderNumber,
-
-    items: order.items.map((item: any) => ({
-      _id: item._id,
-      productId: item.productId?._id,
-      name: item.name,
-      price: item.price,
-      originalPrice: item.originalPrice || item.price,
-      quantity: item.quantity,
-      insuranceCost: item.insuranceCost || 0,
-      selectedVariant: item.selectedVariant || null,
-      productImage: item.productImage,
-      sku: item.sku,
-      itemId: item.itemId,
-      discount: item.discount || 0,
-      discountPercent: item.discountPercent || 0,
-
-      itemTotal: item.price * item.quantity,
-      originalItemTotal: (item.originalPrice || item.price) * item.quantity,
-      itemSavings:
-        ((item.originalPrice || item.price) - item.price) * item.quantity,
-
-      product: item.productId
-        ? {
-            _id: item.productId._id,
-            name: item.productId.name,
-            mainImage: item.productId.mainImage,
-            slug: item.productId.slug,
-          }
-        : null,
-    })),
-
-    priceDetails: order.priceDetails
-      ? {
-          subtotal: order.priceDetails.subtotal,
-          originalSubtotal: order.priceDetails.originalSubtotal,
-          totalDiscount: order.priceDetails.totalDiscount,
-          totalInsurance: order.priceDetails.totalInsurance,
-          shippingCost: order.priceDetails.shippingCost,
-          tax: order.priceDetails.tax,
-          couponDiscount: order.priceDetails.couponDiscount || 0,
-          finalAmount: order.priceDetails.finalAmount,
-          savings: order.priceDetails.savings,
-
-          subtotalWithInsurance:
-            order.priceDetails.subtotal + order.priceDetails.totalInsurance,
-          totalBeforeDiscount:
-            order.priceDetails.originalSubtotal +
-            order.priceDetails.totalInsurance +
-            order.priceDetails.shippingCost +
-            order.priceDetails.tax,
-          grandTotal: order.priceDetails.finalAmount,
-        }
-      : {
-          subtotal: order.subtotal,
-          originalSubtotal: order.subtotal,
-          totalDiscount: order.discount || 0,
-          totalInsurance: order.items.reduce(
-            (sum: number, item: any) => sum + (item.insuranceCost || 0),
-            0,
-          ),
-          shippingCost: order.shippingCost,
-          tax: order.tax,
-          couponDiscount: 0,
-          finalAmount: order.totalAmount,
-          savings: order.discount || 0,
-          subtotalWithInsurance:
-            order.subtotal +
-            order.items.reduce(
-              (sum: number, item: any) => sum + (item.insuranceCost || 0),
-              0,
-            ),
-          totalBeforeDiscount: order.subtotal + order.shippingCost + order.tax,
-          grandTotal: order.totalAmount,
-        },
-
-    subtotal: order.subtotal,
-    shippingCost: order.shippingCost,
-    tax: order.tax,
-    discount: order.discount,
-    totalAmount: order.totalAmount,
-
-    shippingAddress: order.shippingAddress,
-
-    paymentMethod: order.paymentMethod,
-    paymentStatus: order.paymentStatus,
-    orderStatus: order.orderStatus,
-
-    trackingNumber: order.trackingNumber,
-    expectedDeliveryDate: order.expectedDeliveryDate,
-    deliveredAt: order.deliveredAt,
-    cancelledAt: order.cancelledAt,
-    cancellationReason: order.cancellationReason,
-    refundAmount: order.refundAmount,
-    refundedAt: order.refundedAt,
-    notes: order.notes,
-
-    insuranceEnabled: order.insuranceEnabled || [],
-    couponCode: order.couponCode,
-
-    createdAt: order.createdAt,
-    updatedAt: order.updatedAt,
-
-    payment: payment
-      ? {
-          _id: payment._id,
-          paymentId: payment.paymentId,
-          status: payment.status,
-          method: payment.method,
-          gateway: payment.gateway,
-          gatewayTransactionId: payment.gatewayTransactionId,
-          paidAt: payment.paidAt,
-          failureReason: payment.failureReason,
-        }
-      : null,
-
-    orderSummary: {
-      totalItems: order.items.length,
-      totalQuantity: order.items.reduce(
-        (sum: number, item: any) => sum + item.quantity,
-        0,
-      ),
-      hasInsurance:
-        (order.insuranceEnabled && order.insuranceEnabled.length > 0) ||
-        order.items.some((item: any) => (item.insuranceCost || 0) > 0),
-      canCancel: ["pending", "confirmed"].includes(order.orderStatus),
-      canReturn:
-        order.orderStatus === "delivered" &&
-        order.deliveredAt &&
-        new Date().getTime() - new Date(order.deliveredAt).getTime() <=
-          30 * 24 * 60 * 60 * 1000,
-      estimatedDelivery: order.expectedDeliveryDate,
-      orderAge: Math.floor(
-        (new Date().getTime() - new Date(order.createdAt).getTime()) /
-          (24 * 60 * 60 * 1000),
-      ),
-    },
-  };
-}
-
 export const GET = withAuth(
-  async (
-    request: NextRequest,
-    user: AuthenticatedUser,
-    { params }: RouteParams,
-  ) => {
-    const startTime = Date.now();
+  withDB(
+    withRouteErrorHandling(
+      async (
+        request: NextRequest,
+        user: AuthenticatedUser,
+        { params }: RouteParams,
+      ) => {
+        const { id } = await params;
+        const { searchParams } = new URL(request.url);
 
-    try {
-      const { id } = await params;
-      const validatedId = orderIdSchema.parse(id);
+        // Check if this is a lookup by order number
+        const lookup = searchParams.get("lookup");
 
-      // Create cache key for order by ID
-      const cacheKey = `order:id:${validatedId}:user:${user.userId}`;
+        // Validate ID at route boundary
+        const validatedId = OrderIdSchema.parse(id);
 
-      // Try to get cached data
-      const cached = await getCached<any>(cacheKey);
-      if (cached) {
-        return NextResponse.json({
-          ...cached,
-          meta: {
-            ...cached.meta,
-            cached: true,
-            fetchTime: Date.now() - startTime,
-          },
-        });
-      }
+        // Get order by ID or order number
+        const result =
+          lookup === "orderNumber"
+            ? await orderService.getOrderByNumber(user.userId, validatedId)
+            : await orderService.getOrderById(user.userId, validatedId);
 
-      await connectDB();
-
-      const order = await Order.findOne({
-        _id: validatedId,
-        userId: user.userId,
-      })
-        .populate({
-          path: "items.productId",
-          select:
-            "name mainImage slug finalPrice originalPrice discountPercent",
-        })
-        .lean()
-        .exec();
-
-      if (!order) {
-        return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      }
-
-      const payment = await Payment.findOne({ orderId: (order as any)._id })
-        .lean()
-        .exec();
-
-      const orderDetails = formatCompleteOrderResponse(order, payment);
-
-      const responseData = {
-        success: true,
-        order: orderDetails,
-        meta: {
-          fetchTime: Date.now() - startTime,
-          cached: false,
-        },
-      };
-
-      // Cache the response
-      await setCache(cacheKey, responseData, CACHE_TTL.ORDERS || 300);
-
-      return NextResponse.json(responseData);
-    } catch (error) {
-      console.error("[GET] Order fetch by ID error:", error);
-
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: error.issues[0].message },
-          { status: 400 },
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Failed to fetch order" },
-        { status: 500 },
-      );
-    }
-  },
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );
 
 export const PUT = withAuth(
-  async (
-    request: NextRequest,
-    user: AuthenticatedUser,
-    { params }: RouteParams,
-  ) => {
-    try {
-      const { id } = await params;
-      const body = await request.json();
-      const validatedId = orderIdSchema.parse(id);
+  withDB(
+    withRouteErrorHandling(
+      async (
+        request: NextRequest,
+        user: AuthenticatedUser,
+        { params }: RouteParams,
+      ) => {
+        const { id } = await params;
+        const body = await request.json();
 
-      await connectDB();
+        // Validate ID and body at route boundary
+        const validatedId = OrderIdSchema.parse(id);
+        const validatedData = UpdateOrderSchema.parse(body);
 
-      const order = await Order.findOne({
-        _id: validatedId,
-        userId: user.userId,
-      }).populate({
-        path: "items.productId",
-        select: "name mainImage slug finalPrice originalPrice discountPercent",
-      });
-
-      if (!order) {
-        return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      }
-
-      if (body.action === "cancel") {
-        // Check if order can be cancelled (business logic moved from model)
-        if (!['pending', 'confirmed'].includes(order.orderStatus)) {
-          return NextResponse.json(
-            {
-              error: "Order cannot be cancelled",
-              orderStatus: order.orderStatus,
-            },
-            { status: 400 },
-          );
-        }
-
-        // Cancel the order
-        order.orderStatus = 'cancelled';
-        order.cancelledAt = new Date();
-        if (body.reason) {
-          order.cancellationReason = body.reason;
-        }
-        await order.save();
-
-        // Restore stock
-        for (const item of order.items) {
-          await product.findByIdAndUpdate(item.productId, {
-            $inc: {
-              inStockQuantity: item.quantity,
-              totalSold: -item.quantity,
-            },
-          });
-        }
-      } else {
-        const allowedUpdates = ["notes"];
-        const updates: any = {};
-
-        allowedUpdates.forEach((field) => {
-          if (body[field] !== undefined) {
-            updates[field] = body[field];
-          }
-        });
-
-        if (Object.keys(updates).length === 0 && body.action !== "cancel") {
-          return NextResponse.json(
-            {
-              error:
-                'No valid updates provided. Expected action: "cancel" or valid fields like "notes"',
-            },
-            { status: 400 },
-          );
-        }
-
-        if (Object.keys(updates).length > 0) {
-          Object.assign(order, updates);
-          await order.save();
-        }
-      }
-
-      // Invalidate all related caches using prefix pattern
-      try {
-        await Promise.all([
-          invalidateCacheByPrefix(
-            `order:id:${validatedId}:user:${user.userId}`,
-          ),
-          invalidateCacheByPrefix(
-            `order:${order.orderNumber}:user:${user.userId}`,
-          ),
-          invalidateCacheByPrefix(`orders:user:${user.userId}`),
-        ]);
-      } catch (cacheError) {
-        console.error("Failed to invalidate order cache:", cacheError);
-        // Don't fail the update if cache invalidation fails
-      }
-
-      const payment = await Payment.findOne({ orderId: order._id });
-      const orderDetails = formatCompleteOrderResponse(order, payment);
-
-      return NextResponse.json({
-        success: true,
-        order: orderDetails,
-        message:
-          body.action === "cancel"
-            ? "Order cancelled successfully"
-            : "Order updated successfully",
-      });
-    } catch (error) {
-      console.error("[PUT] Order update error:", error);
-
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: error.issues[0].message },
-          { status: 400 },
+        const result = await orderService.updateOrder(
+          user.userId,
+          validatedId,
+          validatedData,
         );
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to update order",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 500 },
-      );
-    }
-  },
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );
 
 export const DELETE = withAuth(
-  async (
-    request: NextRequest,
-    user: AuthenticatedUser,
-    { params }: RouteParams,
-  ) => {
-    try {
-      const { id } = await params;
-      const validatedId = orderIdSchema.parse(id);
+  withDB(
+    withRouteErrorHandling(
+      async (
+        request: NextRequest,
+        user: AuthenticatedUser,
+        { params }: RouteParams,
+      ) => {
+        const { id } = await params;
 
-      await connectDB();
+        // Validate ID at route boundary
+        const validatedId = OrderIdSchema.parse(id);
 
-      const order = await Order.findOne({
-        _id: validatedId,
-        userId: user.userId,
-      });
-
-      if (!order) {
-        return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      }
-
-      if (
-        order.orderStatus !== "cancelled" &&
-        order.orderStatus !== "returned"
-      ) {
-        return NextResponse.json(
-          {
-            error: "Only cancelled or returned orders can be deleted",
-            orderStatus: order.orderStatus,
-          },
-          { status: 400 },
-        );
-      }
-
-      await Payment.deleteMany({ orderId: order._id });
-      await Order.findByIdAndDelete(order._id);
-
-      // Invalidate all related caches using prefix pattern
-      try {
-        await Promise.all([
-          invalidateCacheByPrefix(
-            `order:id:${validatedId}:user:${user.userId}`,
-          ),
-          invalidateCacheByPrefix(
-            `order:${order.orderNumber}:user:${user.userId}`,
-          ),
-          invalidateCacheByPrefix(`orders:user:${user.userId}`),
-        ]);
-      } catch (cacheError) {
-        console.error("Failed to invalidate order cache:", cacheError);
-        // Don't fail the deletion if cache invalidation fails
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: "Order deleted successfully",
-        deletedOrder: {
-          orderNumber: order.orderNumber,
-          totalAmount: order.totalAmount,
-          orderStatus: order.orderStatus,
-          deletedAt: new Date().toISOString(),
-        },
-      });
-    } catch (error) {
-      console.error("[DELETE] Order deletion error:", error);
-
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: error.issues[0].message },
-          { status: 400 },
-        );
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to delete order",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 500 },
-      );
-    }
-  },
+        const result = await orderService.deleteOrder(user.userId, validatedId);
+        return ApiResponseBuilder.success(result);
+      },
+    ),
+  ),
 );

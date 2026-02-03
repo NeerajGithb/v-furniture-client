@@ -1,14 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { calculateCheckoutTotals, CheckoutTotals } from "@/lib/order/pricingCalculations";
-
-export type { CheckoutTotals };
-
-export interface CartCheckoutState {
-  selectedItems: Set<string>;
-  insuranceEnabled: Set<string>;
-  totals: CheckoutTotals;
-}
+import { calculateCheckoutTotals } from "@/lib/order/pricingCalculations";
+import { CartCheckoutState, CheckoutTotals } from "@/types/cart";
 
 interface CartStore {
   checkout: CartCheckoutState;
@@ -150,7 +143,10 @@ export const useCartStore = create<CartStore>()(
 
         // Use shared pricing calculation utility
         const insuranceEnabledIds = Array.from(checkout.insuranceEnabled);
-        const totals = calculateCheckoutTotals(selectedCartItems, insuranceEnabledIds);
+        const totals = calculateCheckoutTotals(
+          selectedCartItems,
+          insuranceEnabledIds,
+        );
 
         set((state) => ({
           checkout: {

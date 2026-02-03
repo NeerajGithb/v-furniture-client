@@ -8,7 +8,7 @@ const NORMALIZE_MODELS = [
 ].filter((m): m is string => typeof m === "string" && m.length > 0);
 
 export async function normalizeMessage(
-  userMessage: string
+  userMessage: string,
 ): Promise<{ normalized: string; language: string }> {
   if (!userMessage?.trim()) {
     return { normalized: "", language: "unknown" };
@@ -20,16 +20,11 @@ export async function normalizeMessage(
   // ✅ EXACT MATCH CHECK - using centralized caching
   const exactPatterns = getCachedPatternsSet();
   if (exactPatterns.has(lowered)) {
-    console.log(`[Normalize] Exact match → SKIP GROQ`);
     return { normalized: lowered, language: "english" };
   }
 
-  console.log(`[Normalize] No exact match → CALL GROQ`);
-
   for (const model of NORMALIZE_MODELS) {
     try {
-      console.log(`[Normalize] Trying model: ${model}`);
-
       const response = await callGroq(
         [
           { role: "system", content: NORMALIZE_PROMPT },
@@ -39,7 +34,7 @@ export async function normalizeMessage(
         {
           apiKey: process.env.GROQ_API_KEY_NORMALIZE!,
           model,
-        }
+        },
       );
 
       if (!response || !response.trim()) {
@@ -59,14 +54,10 @@ export async function normalizeMessage(
       }
 
       throw new Error("Invalid JSON shape");
-    } catch (err) {
-      console.warn(`[Normalize] Model failed (${model}), trying next`, err);
-    }
+    } catch (err) {}
   }
 
   // 🟢 FINAL SAFE FALLBACK (NEVER FAIL)
-  console.error("[Normalize] All models failed → SAFE FALLBACK");
-
   return {
     normalized: text,
     language: "english",

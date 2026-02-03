@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { MessageCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
-import ChatWindow from './ChatWindow';
-import { useChatStore } from '@/stores/chatStore';
+import { MessageCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import ChatWindow from "./ChatWindow";
+import { useChatStore } from "@/stores/chatStore";
 
 export default function ChatWidget() {
   const { isOpen, toggleChat } = useChatStore();
@@ -18,13 +18,13 @@ export default function ChatWidget() {
           animate={{ scale: 1 }}
           transition={{
             duration: 0.2,
-            ease: [0.16, 1, 0.3, 1] // Smooth easing, no bounce
+            ease: [0.16, 1, 0.3, 1], // Smooth easing, no bounce
           }}
           style={{
-            transformOrigin: 'bottom right',
-            position: 'fixed',
-            right: '20px',
-            bottom: '28px',
+            transformOrigin: "bottom right",
+            position: "fixed",
+            right: "20px",
+            bottom: "28px",
             zIndex: 9998,
           }}
         >
@@ -48,7 +48,7 @@ export default function ChatWidget() {
             hover:scale-110
             transition-transform
           "
-          style={{ backgroundColor: 'var(--brand-strong)' }}
+          style={{ backgroundColor: "var(--brand-strong)" }}
         >
           <MessageCircle size={20} />
         </button>

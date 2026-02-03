@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { memo, useCallback, useState } from 'react';
+import Image from "next/image";
+import { memo, useCallback, useState } from "react";
 
 interface AvatarProps {
   src?: string;
@@ -16,7 +16,7 @@ export const Avatar = memo(({ src, alt, fallbackText }: AvatarProps) => {
   if (!src || imageError) {
     return (
       <div className="w-8 h-8 min-h-8 min-w-8 bg-black dark:bg-white rounded-full flex items-center justify-center text-xs font-normal text-white dark:text-black">
-        {fallbackText || 'U'}
+        {fallbackText || "U"}
       </div>
     );
   }
@@ -24,7 +24,7 @@ export const Avatar = memo(({ src, alt, fallbackText }: AvatarProps) => {
   return (
     <Image
       src={src}
-      alt={alt || 'Avatar'}
+      alt={alt || "Avatar"}
       width={28}
       height={28}
       className="w-7 min-h-7 min-w-7 h-7 rounded-full object-cover aspect-square"
@@ -33,4 +33,4 @@ export const Avatar = memo(({ src, alt, fallbackText }: AvatarProps) => {
   );
 });
 
-Avatar.displayName = 'Avatar';
+Avatar.displayName = "Avatar";

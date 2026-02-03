@@ -1,31 +1,25 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { NavLink, useNavigate } from '@/components/NavigationLoader';
-import Loading from '@/components/ui/Loader';
+import { useParams } from "next/navigation";
+import { NavLink, useNavigate } from "@/components/NavigationLoader";
+import Loading from "@/components/ui/Loader";
 
-import InspirationBanner from '@/components/inspiration/InspirationBanner';
-import CategoryGrid from '@/components/inspiration/CategoryGrid';
-import RelatedProducts from '@/components/inspiration/RelatedProducts';
-import NewArrivals from '@/components/inspiration/NewArrivals';
-import MoreInspirationIdeas from '@/components/inspiration/MoreInspirationIdeas';
+import InspirationBanner from "@/components/inspiration/InspirationBanner";
+import CategoryGrid from "@/components/inspiration/CategoryGrid";
+import RelatedProducts from "@/components/inspiration/RelatedProducts";
+import NewArrivals from "@/components/inspiration/NewArrivals";
+import MoreInspirationIdeas from "@/components/inspiration/MoreInspirationIdeas";
 
-import { useHomeStore } from '@/stores/homeStore';
-import { useInspiration } from '@/hooks/useHomeData';
+import {
+  useInspiration,
+  useRelatedProducts,
+  useInspirations,
+} from "@/hooks/useHomeData";
 
 const InspirationDetailPage = () => {
   const params = useParams();
   const navigate = useNavigate();
   const inspirationSlug = params?.id as string;
-
-  const setCurrentInspiration = useHomeStore(
-    (state) => state.setCurrentInspiration
-  );
-  const currentInspiration = useHomeStore(
-    (state) => state.currentInspiration
-  );
 
   const {
     data: inspiration,
@@ -34,15 +28,26 @@ const InspirationDetailPage = () => {
     error,
   } = useInspiration(inspirationSlug);
 
-  /**
-   * Sync React Query data → Zustand (UI state)
-   * This is the ONLY correct place to do this.
-   */
-  useEffect(() => {
-    if (inspiration) {
-      setCurrentInspiration(inspiration);
-    }
-  }, [inspiration, setCurrentInspiration]);
+  const {
+    data: relatedProducts = [],
+    isLoading: relatedLoading,
+    isError: relatedError,
+    error: relatedErrorData,
+  } = useRelatedProducts(inspirationSlug, 20);
+
+  const {
+    data: newArrivals = [],
+    isLoading: arrivalsLoading,
+    isError: arrivalsError,
+    error: arrivalsErrorData,
+  } = useRelatedProducts(inspirationSlug, 20, "newest");
+
+  const {
+    data: allInspirations = [],
+    isLoading: inspirationsLoading,
+    isError: inspirationsError,
+    error: inspirationsErrorData,
+  } = useInspirations();
 
   if (isLoading) {
     return <Loading fullScreen variant="spinner" size="lg" />;
@@ -50,17 +55,13 @@ const InspirationDetailPage = () => {
 
   if (isError) {
     const message =
-      error instanceof Error ? error.message : 'Something went wrong';
+      error instanceof Error ? error.message : "Something went wrong";
 
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="min-h-screen flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center max-w-md mx-auto"
-            >
+            <div className="text-center max-w-md mx-auto">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-8 sm:p-12">
                 <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg
@@ -79,15 +80,15 @@ const InspirationDetailPage = () => {
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                  {message === 'Inspiration not found'
-                    ? 'Inspiration Not Found'
-                    : 'Something Went Wrong'}
+                  {message === "Inspiration not found"
+                    ? "Inspiration Not Found"
+                    : "Something Went Wrong"}
                 </h1>
 
                 <p className="text-gray-600 dark:text-gray-300 mb-8">
-                  {message === 'Inspiration not found'
+                  {message === "Inspiration not found"
                     ? "The inspiration you're looking for doesn't exist or has been moved."
-                    : 'We encountered an error while loading this inspiration. Please try again.'}
+                    : "We encountered an error while loading this inspiration. Please try again."}
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -106,63 +107,59 @@ const InspirationDetailPage = () => {
                   </NavLink>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!currentInspiration) {
+  if (!inspiration) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f1419]">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <InspirationBanner inspiration={currentInspiration} />
-      </motion.div>
+      <div>
+        <InspirationBanner
+          inspiration={inspiration}
+          loading={false}
+          error={null}
+        />
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <CategoryGrid inspiration={currentInspiration} loading={false} />
-      </motion.div>
+      <div>
+        <CategoryGrid
+          categories={inspiration.categories || []}
+          loading={false}
+          error={null}
+        />
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
+      <div>
         <RelatedProducts
-          inspirationSlug={currentInspiration.slug}
-          limit={20}
+          products={relatedProducts}
+          loading={relatedLoading}
+          error={relatedError ? relatedErrorData : null}
         />
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
+      <div>
         <NewArrivals
-          inspirationSlug={currentInspiration.slug}
-          limit={20}
-          sort="newest"
+          products={newArrivals}
+          loading={arrivalsLoading}
+          error={arrivalsError ? arrivalsErrorData : null}
         />
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
+      <div>
         <MoreInspirationIdeas
-          currentInspirationId={currentInspiration._id}
+          inspirations={allInspirations}
+          loading={inspirationsLoading}
+          error={inspirationsError ? inspirationsErrorData : null}
+          currentInspirationId={inspiration._id}
         />
-      </motion.div>
+      </div>
     </div>
   );
 };

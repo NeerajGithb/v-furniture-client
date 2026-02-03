@@ -1,5 +1,12 @@
 import type { OrderStatus, PaymentStatus, PaymentMethod } from "@/types/order";
-import { CheckCircle, Package, Truck, Clock, XCircle, RefreshCw } from "lucide-react";
+import {
+  CheckCircle,
+  Package,
+  Truck,
+  Clock,
+  XCircle,
+  RefreshCw,
+} from "lucide-react";
 
 // Date display helpers
 export const getExpectedDeliveryDisplay = (
@@ -7,7 +14,8 @@ export const getExpectedDeliveryDisplay = (
   isOrderActive?: boolean,
 ): { text: string; isOverdue: boolean } => {
   if (!isOrderActive) return { text: "", isOverdue: false };
-  if (!expectedDeliveryDate) return { text: "5-7 Business Days", isOverdue: false };
+  if (!expectedDeliveryDate)
+    return { text: "5-7 Business Days", isOverdue: false };
 
   try {
     const expectedDate = new Date(expectedDeliveryDate);
@@ -15,16 +23,16 @@ export const getExpectedDeliveryDisplay = (
     today.setHours(0, 0, 0, 0);
     expectedDate.setHours(0, 0, 0, 0);
     const isOverdue = expectedDate < today;
-    
+
     const dateText = expectedDate.toLocaleDateString("en-IN", {
       weekday: "long",
       day: "numeric",
       month: "long",
     });
-    
+
     return {
       text: dateText,
-      isOverdue
+      isOverdue,
     };
   } catch {
     return { text: "5-7 Business Days", isOverdue: false };
@@ -50,7 +58,9 @@ export const getDeliveredDateDisplay = (
 };
 
 // Payment helpers
-export const getPaymentMethodDisplay = (paymentMethod?: PaymentMethod): string => {
+export const getPaymentMethodDisplay = (
+  paymentMethod?: PaymentMethod,
+): string => {
   if (!paymentMethod) return "";
 
   const methodMap: Record<PaymentMethod, string> = {
@@ -69,7 +79,9 @@ export const getPaymentMethodDisplay = (paymentMethod?: PaymentMethod): string =
   return methodMap[paymentMethod] || paymentMethod;
 };
 
-export const getPaymentStatusStyle = (paymentStatus?: PaymentStatus): string => {
+export const getPaymentStatusStyle = (
+  paymentStatus?: PaymentStatus,
+): string => {
   const status: PaymentStatus = paymentStatus || "pending";
 
   const statusStyles: Record<PaymentStatus, string> = {
@@ -82,7 +94,9 @@ export const getPaymentStatusStyle = (paymentStatus?: PaymentStatus): string => 
   return statusStyles[status] || statusStyles.pending;
 };
 
-export const getPaymentStatusLabel = (paymentStatus?: PaymentStatus): string => {
+export const getPaymentStatusLabel = (
+  paymentStatus?: PaymentStatus,
+): string => {
   const status: PaymentStatus = paymentStatus || "pending";
 
   const statusLabels: Record<PaymentStatus, string> = {
@@ -137,5 +151,7 @@ export const getOrderStatusDisplay = (orderStatus?: OrderStatus) => {
     },
   };
 
-  return statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+  return (
+    statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
+  );
 };

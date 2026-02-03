@@ -61,7 +61,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
       updateSelectedAddress: (addressId: string) => {
         const { checkoutData } = get();
         if (!checkoutData) {
-          console.warn("No checkout data available to update address");
           return;
         }
 
@@ -77,7 +76,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
       updateSelectedPaymentMethod: (method: PaymentMethod) => {
         const { checkoutData } = get();
         if (!checkoutData) {
-          console.warn("No checkout data available to update payment method");
           return;
         }
 
@@ -93,12 +91,10 @@ export const useCheckoutStore = create<CheckoutStore>()(
       toggleInsurance: (productId: string) => {
         const { checkoutData } = get();
         if (!checkoutData) {
-          console.warn("No checkout data available to toggle insurance");
           return;
         }
 
         if (!checkoutData.selectedItems.includes(productId)) {
-          console.warn(`Product ${productId} not in selected items`);
           return;
         }
 
@@ -146,7 +142,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
       applyCoupon: (code: string, discount: number) => {
         const { checkoutData } = get();
         if (!checkoutData) {
-          console.warn("No checkout data available to apply coupon");
           return;
         }
 
@@ -172,7 +167,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
       removeCoupon: () => {
         const { checkoutData } = get();
         if (!checkoutData) {
-          console.warn("No checkout data available to remove coupon");
           return;
         }
 
@@ -212,7 +206,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
 
       clearIfExpired: () => {
         if (get().isCheckoutExpired()) {
-          console.warn("Checkout data expired, clearing...");
           get().clearCheckout();
           return true;
         }
@@ -224,7 +217,6 @@ export const useCheckoutStore = create<CheckoutStore>()(
 
         // Auto-clear if expired
         if (checkoutData && get().isCheckoutExpired()) {
-          console.warn("Checkout data expired, clearing...");
           get().clearCheckout();
           return null;
         }

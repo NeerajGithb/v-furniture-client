@@ -12,7 +12,7 @@ export interface Category {
 
 export interface AutocompleteItem {
   text: string;
-  type: 'exact' | 'product' | 'category' | 'variant';
+  type: "exact" | "product" | "category" | "variant";
   count?: number;
   image?: string;
   category?: string;

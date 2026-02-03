@@ -39,7 +39,7 @@ const WebhookEventSchema = new Schema<IWebhookEvent>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for cleanup queries

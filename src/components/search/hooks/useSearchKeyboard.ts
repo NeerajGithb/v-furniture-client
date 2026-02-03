@@ -63,7 +63,7 @@ export const useSearchKeyboard = ({
           let name: string;
           if (typeof item === "string") {
             name = item;
-          } else if ('name' in item) {
+          } else if ("name" in item) {
             name = item.name;
           } else {
             name = item.text;

@@ -1,8 +1,7 @@
 import { navigationLoader } from "@/components/NavigationLoader";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { fetchWithCredentials, handleApiResponse } from "@/utils/fetchWithCredentials";
-
-const LOG_PREFIX = "[ActionExecutor]";
+import { cartService } from "@/services/cartService";
+import { wishlistService } from "@/services/wishlistService";
 
 function buildSearchUrl(params: {
   category?: string;
@@ -31,7 +30,6 @@ function buildSearchUrl(params: {
   const queryString = queryParams.toString();
   const url = queryString ? `/search?${queryString}` : "/products";
 
-  console.log(`${LOG_PREFIX} Built search URL: ${url}`);
   return url;
 }
 
@@ -74,20 +72,13 @@ async function executeApiAction(
   failMessage: string,
   actionName: string,
 ): Promise<ActionExecutionResult> {
-  console.log(`${LOG_PREFIX} 🛒 Executing API action: ${actionName}`);
-
   try {
     await actionFn();
-    console.log(`${LOG_PREFIX} ✓ API action succeeded: ${actionName}`);
     return {
       success: true,
       message: successMessage,
     };
   } catch (error: any) {
-    console.error(
-      `${LOG_PREFIX} ✗ API action error: ${actionName}`,
-      error.message,
-    );
     return {
       success: false,
       message: failMessage,
@@ -116,10 +107,6 @@ export async function executeChatAction(
   isAuthenticated: boolean = false,
   onLoadingMessage?: (msg: string) => void,
 ): Promise<ActionExecutionResult> {
-  console.log(`\n${LOG_PREFIX} ========== EXECUTING ACTION ==========`);
-  console.log(`${LOG_PREFIX} Action: ${action}`);
-  console.log(`${LOG_PREFIX} Authenticated: ${isAuthenticated}`);
-
   // Check authentication for protected actions
   const authRequiredActions = [
     "add_to_cart",
@@ -139,7 +126,6 @@ export async function executeChatAction(
   ];
 
   if (authRequiredActions.includes(action) && !isAuthenticated) {
-    console.log(`${LOG_PREFIX} ⚠️ Auth required for: ${action}`);
     return {
       success: false,
       message: "Please login first 🔐",
@@ -159,11 +145,14 @@ export async function executeChatAction(
         const quantity = params.quantity || 1;
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials("/api/cart", {
-              method: "POST",
-              body: JSON.stringify({ productId: params.productId, quantity }),
+            if (!params.productId) {
+              throw new Error("Product ID is required");
+            }
+            await cartService.addToCart({
+              productId: params.productId,
+              quantity,
             });
-            return handleApiResponse(response);
+            return { success: true };
           },
           "Added to cart successfully! 🛒",
           "Failed to add to cart",
@@ -178,10 +167,11 @@ export async function executeChatAction(
 
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials(`/api/cart/${params.productId}`, {
-              method: "DELETE",
-            });
-            return handleApiResponse(response);
+            if (!params.productId) {
+              throw new Error("Product ID is required");
+            }
+            await cartService.removeFromCart(params.productId);
+            return { success: true };
           },
           "Removed from cart ✓",
           "Failed to remove from cart",
@@ -192,10 +182,8 @@ export async function executeChatAction(
       case "clear_cart": {
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials("/api/cart/clear", {
-              method: "DELETE",
-            });
-            return handleApiResponse(response);
+            await cartService.clearCart();
+            return { success: true };
           },
           "Cart cleared ✓",
           "Failed to clear cart",
@@ -220,11 +208,13 @@ export async function executeChatAction(
 
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials("/api/wishlist", {
-              method: "POST",
-              body: JSON.stringify({ productId: params.productId }),
+            if (!params.productId) {
+              throw new Error("Product ID is required");
+            }
+            await wishlistService.addToWishlist({
+              productId: params.productId,
             });
-            return handleApiResponse(response);
+            return { success: true };
           },
           "Added to wishlist! ❤️",
           "Failed to add to wishlist",
@@ -239,10 +229,13 @@ export async function executeChatAction(
 
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials(`/api/wishlist/${params.productId}`, {
-              method: "DELETE",
+            if (!params.productId) {
+              throw new Error("Product ID is required");
+            }
+            await wishlistService.removeFromWishlist({
+              productId: params.productId,
             });
-            return handleApiResponse(response);
+            return { success: true };
           },
           "Removed from wishlist ✓",
           "Failed to remove from wishlist",
@@ -253,10 +246,8 @@ export async function executeChatAction(
       case "clear_wishlist": {
         return executeApiAction(
           async () => {
-            const response = await fetchWithCredentials("/api/wishlist/clear", {
-              method: "DELETE",
-            });
-            return handleApiResponse(response);
+            await wishlistService.clearWishlist();
+            return { success: true };
           },
           "Wishlist cleared ✓",
           "Failed to clear wishlist",
@@ -493,34 +484,32 @@ export async function executeChatAction(
       }
 
       default: {
-        console.warn(`${LOG_PREFIX} ⚠️ Unknown action: ${action}`);
         return { success: true, message: "Action completed" };
       }
     }
   } catch (error: any) {
-    console.error(`${LOG_PREFIX} ✗ Error executing ${action}:`, error.message);
     return {
       success: false,
       message: error.message || "Failed to execute action",
     };
   } finally {
-    console.log(`${LOG_PREFIX} ==========================================\n`);
   }
 }
 
 export async function getProductStatus(productId: string) {
   try {
-    // Fetch cart and wishlist data from API
-    const [cartResponse, wishlistResponse] = await Promise.all([
-      fetchWithCredentials("/api/cart"),
-      fetchWithCredentials("/api/wishlist"),
+    // Fetch cart and wishlist data from services
+    const [cart, wishlist] = await Promise.all([
+      cartService.getCart(),
+      wishlistService.getWishlist(),
     ]);
 
-    const cart = await handleApiResponse(cartResponse);
-    const wishlist = await handleApiResponse(wishlistResponse);
-
-    const cartItem = cart?.items?.find((item: any) => item.product._id === productId);
-    const isWishlisted = wishlist?.items?.some((item: any) => item.product._id === productId);
+    const cartItem = cart?.items?.find(
+      (item: any) => item.product._id === productId,
+    );
+    const isWishlisted = wishlist?.items?.some(
+      (item: any) => item.product._id === productId,
+    );
 
     return {
       isInCart: !!cartItem,
@@ -528,7 +517,6 @@ export async function getProductStatus(productId: string) {
       cartQuantity: cartItem?.quantity || 0,
     };
   } catch (error) {
-    console.error("Failed to get product status:", error);
     return {
       isInCart: false,
       isWishlisted: false,

@@ -1,19 +1,21 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { NavLink } from '@/components/NavigationLoader';
-import { Star, Heart, ShoppingCart, Check, Loader2, Eye } from 'lucide-react';
-import { useState } from 'react';
-import { Product } from '@/types/Product';
-import slugify from 'slugify';
-import { toast } from 'react-hot-toast';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useCartStore } from '@/stores/cartStore';
-import { useWishlistStore } from '@/stores/wishlistStore';
-import { useHomeStore } from '@/stores/homeStore';
-import { useAddToCart } from '@/hooks/useCartData';
-import { useAddToWishlist, useRemoveFromWishlist } from '@/hooks/useWishlistData';
-import { usePathname } from 'next/navigation';
+import { motion } from "framer-motion";
+import { NavLink } from "@/components/NavigationLoader";
+import { Star, Heart, ShoppingCart, Check, Loader2, Eye } from "lucide-react";
+import { useState } from "react";
+import { Product } from "@/types/Product";
+import slugify from "slugify";
+import { useAuth } from "@/context/AuthContext";
+import { useCartStore } from "@/stores/cartStore";
+import { useWishlistStore } from "@/stores/wishlistStore";
+import { useHomeStore } from "@/stores/homeStore";
+import { useAddToCart } from "@/hooks/useCartData";
+import {
+  useAddToWishlist,
+  useRemoveFromWishlist,
+} from "@/hooks/useWishlistData";
+import { usePathname } from "next/navigation";
 
 interface ProductCardProps {
   product: Product;
@@ -21,15 +23,19 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
-  const { user } = useCurrentUser();
+  const { user, authLoading } = useAuth();
   const pathname = usePathname();
-  const isHome = pathname === '/';
+  const isHome = pathname === "/";
+
+  // Check if user is ready for private data calls
+  const isUserReady = !authLoading && !!user;
 
   // Use home store for cart/wishlist status
   const { isInCart, isInWishlist, getCartQuantity } = useHomeStore();
-  const { mutateAsync: addToCart } = useAddToCart();
-  const { mutateAsync: addToWishlist } = useAddToWishlist();
-  const { mutateAsync: removeFromWishlist } = useRemoveFromWishlist();
+  const { mutateAsync: addToCart } = useAddToCart(isUserReady);
+  const { mutateAsync: addToWishlist } = useAddToWishlist(isUserReady);
+  const { mutateAsync: removeFromWishlist } =
+    useRemoveFromWishlist(isUserReady);
 
   // Use stores for UI state only
   const { isUpdating: isCartUpdating } = useCartStore();
@@ -37,11 +43,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
 
   const [imageLoading, setImageLoading] = useState(true);
 
-  const cleanName = product.name.replace(/\s*\(Copy\)\s*/g, '').trim();
+  const cleanName = product.name.replace(/\s*\(Copy\)\s*/g, "").trim();
 
   const hasDiscount = product.discountPercent && product.discountPercent > 0;
-  const discountPercentage = hasDiscount ? Math.round(product.discountPercent!) : 0;
-  const isOutOfStock = product.inStockQuantity !== undefined && product.inStockQuantity <= 0;
+  const discountPercentage = hasDiscount
+    ? Math.round(product.discountPercent!)
+    : 0;
+  const isOutOfStock =
+    product.inStockQuantity !== undefined && product.inStockQuantity <= 0;
   const isLowStock =
     product.inStockQuantity !== undefined &&
     product.inStockQuantity > 0 &&
@@ -66,17 +75,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!user?.id) {
-      toast.error('Please login to add items to cart');
+    if (!user?.id || isOutOfStock) {
       return;
     }
 
-    if (isOutOfStock) {
-      toast.error('Product is out of stock');
-      return;
-    }
+    const payload = { productId: product._id, quantity: 1 };
 
-    await addToCart({ productId: product._id, quantity: 1 });
+    await addToCart(payload);
   };
 
   const handleWishlistToggle = async (e: React.MouseEvent) => {
@@ -84,7 +89,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
     e.stopPropagation();
 
     if (!user?.id) {
-      toast.error('Please login to manage wishlist');
       return;
     }
 
@@ -95,13 +99,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
     }
   };
 
-  const renderStars = (rating: number, size: 'small' | 'normal' = 'normal') => {
+  const renderStars = (rating: number, size: "small" | "normal" = "normal") => {
     const stars = [];
     const safeRating = Math.max(0, Math.min(5, rating || 0));
     const fullStars = Math.floor(safeRating);
     const hasHalfStar = safeRating % 1 !== 0;
-    
-    const sizeClass = size === 'small' ? 'w-2 h-2 sm:w-2.5 sm:h-2.5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5';
+
+    const sizeClass =
+      size === "small"
+        ? "w-2 h-2 sm:w-2.5 sm:h-2.5"
+        : "w-3 h-3 sm:w-3.5 sm:h-3.5";
 
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
@@ -114,7 +121,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
       } else if (i === fullStars && hasHalfStar) {
         stars.push(
           <div key={i} className={`relative ${sizeClass} shrink-0`}>
-            <Star className={`${sizeClass} text-gray-300 dark:text-gray-600 absolute`} />
+            <Star
+              className={`${sizeClass} text-gray-300 dark:text-gray-600 absolute`}
+            />
             <div className="overflow-hidden w-1/2">
               <Star className={`${sizeClass} fill-amber-400 text-amber-400`} />
             </div>
@@ -122,7 +131,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
         );
       } else {
         stars.push(
-          <Star key={i} className={`${sizeClass} text-gray-300 dark:text-gray-600 shrink-0`} />,
+          <Star
+            key={i}
+            className={`${sizeClass} text-gray-300 dark:text-gray-600 shrink-0`}
+          />,
         );
       }
     }
@@ -136,13 +148,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
       info.push(product.material);
     }
 
-    if (product.dimensions?.length && product.dimensions?.width && product.dimensions?.height) {
+    if (
+      product.dimensions?.length &&
+      product.dimensions?.width &&
+      product.dimensions?.height
+    ) {
       info.push(
         `${product.dimensions.length}×${product.dimensions.width}×${product.dimensions.height}cm`,
       );
     }
 
-    return info.join(' • ');
+    return info.join(" • ");
   };
 
   return (
@@ -166,7 +182,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
             <motion.img
               src={displayImage}
               alt={product.mainImage?.alt || cleanName}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 saturate-200${imageLoading ? 'opacity-0' : 'opacity-100'
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 saturate-200${imageLoading ? "opacity-0" : "opacity-100"
                 }`}
               onLoad={() => setImageLoading(false)}
               onError={() => setImageLoading(false)}
@@ -174,7 +190,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
             />
           ) : (
             <div className="absolute inset-0 bg-linear-to-br from-gray-100 dark:from-gray-700 to-gray-200 dark:to-gray-800 flex items-center justify-center">
-              <div className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-medium">No Image</div>
+              <div className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-medium">
+                No Image
+              </div>
             </div>
           )}
 
@@ -225,14 +243,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
               whileTap={{ scale: 0.95 }}
               onClick={handleWishlistToggle}
               disabled={isAddingToWishlist || !user?.id}
-              className={`p-1.5 sm:p-2 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-sm transition-colors duration-200 hover:bg-white dark:hover:bg-gray-700 ${productWishlisted ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400'
-                } ${!user?.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`p-1.5 sm:p-2 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-sm transition-colors duration-200 hover:bg-white dark:hover:bg-gray-700 ${productWishlisted
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                } ${!user?.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               {isAddingToWishlist ? (
                 <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
               ) : (
                 <Heart
-                  className={`w-3 h-3 sm:w-4 sm:h-4 ${productWishlisted ? 'fill-current' : ''}`}
+                  className={`w-3 h-3 sm:w-4 sm:h-4 ${productWishlisted ? "fill-current" : ""}`}
                 />
               )}
             </motion.button>
@@ -254,11 +274,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
             <h3 className="flex-1 font-semibold text-gray-900 dark:text-white text-xs sm:text-sm leading-tight line-clamp-2">
               {cleanName}
             </h3>
-            
+
             {reviews.count > 0 && (
               <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                 <div className="flex items-center gap-0.5">
-                  {renderStars(reviews.average, 'small')}
+                  {renderStars(reviews.average, "small")}
                 </div>
                 <span className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400">
                   ({reviews.count})
@@ -293,8 +313,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
               onClick={handleAddToCart}
               disabled={isOutOfStock || isAddingToCart || !user?.id}
               className={`flex-1 h-full text-white text-xs font-medium transition-all duration-200 flex items-center justify-center gap-1.5 rounded-xs backdrop-blur-sm ${productInCart
-                ? 'bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 shadow-sm'
-                : 'bg-gray-900 dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 shadow-sm'
+                  ? "bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 shadow-sm"
+                  : "bg-gray-900 dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 shadow-sm"
                 } disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed hover:shadow-md`}
             >
               {isAddingToCart ? (

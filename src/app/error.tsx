@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 
 export default function Error({
   error,
@@ -13,9 +13,7 @@ export default function Error({
 }) {
   const router = useRouter();
 
-  useEffect(() => {
-    console.error('Error:', error);
-  }, [error]);
+  useEffect(() => {}, [error]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f1419] pt-20 p-4">
@@ -34,7 +32,7 @@ export default function Error({
         </p>
 
         {/* Error Details (development only) */}
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === "development" && (
           <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-3 mb-6 text-left">
             <p className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
               {error.message}
@@ -53,7 +51,7 @@ export default function Error({
           </button>
 
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push("/")}
             className="flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-6 py-2.5 rounded font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <Home className="w-4 h-4" />

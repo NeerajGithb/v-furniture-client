@@ -105,27 +105,27 @@ export interface PriceBreakdown {
 }
 
 export type PaymentMethod =
-  | 'card'
-  | 'upi'
-  | 'netbanking'
-  | 'cod'
-  | 'wallet'
-  | 'razorpay'
-  | 'stripe'
-  | 'paytm'
-  | 'phonepe'
-  | 'googlepay';
+  | "card"
+  | "upi"
+  | "netbanking"
+  | "cod"
+  | "wallet"
+  | "razorpay"
+  | "stripe"
+  | "paytm"
+  | "phonepe"
+  | "googlepay";
 
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled'
-  | 'returned';
+  | "pending"
+  | "confirmed"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "returned";
 
 export interface Order {
   _id: string;
@@ -150,7 +150,7 @@ export interface Order {
   refundAmount?: number;
   refundedAt?: string;
   notes?: string;
-  priceBreakdown: PriceBreakdown; // Made required instead of optional
+  priceBreakdown: PriceBreakdown;
   insuranceEnabled?: string[];
   couponCode?: string;
   carrier?: string;
@@ -161,6 +161,39 @@ export interface Order {
   orderSummary?: OrderSummary;
   paymentId?: string;
   insuranceCost?: number | boolean;
+}
+
+/**
+ * Request Types
+ */
+
+// Backend order creation payload (what the API actually expects)
+export interface CreateOrderPayload {
+  addressId: string;
+  paymentMethod: PaymentMethod | "";
+  selectedItems: string[];
+  cartData: Array<{
+    productId: string;
+    quantity: number;
+    selectedVariant?: {
+      color?: string;
+      size?: string;
+      sku?: string;
+    };
+  }>;
+  insuranceEnabled?: string[];
+  couponCode?: string;
+}
+
+export interface OrderFilters {
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  page?: number;
+  skip?: number;
+  orderNumber?: string;
 }
 
 /**
@@ -183,5 +216,16 @@ export interface OrdersListResponse {
   meta: {
     fetchTime: number;
     cached: boolean;
+  };
+}
+
+export interface OrdersApiResponse {
+  orders: Order[];
+  totalOrders: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
   };
 }

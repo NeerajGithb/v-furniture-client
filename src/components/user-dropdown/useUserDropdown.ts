@@ -58,11 +58,14 @@ export const getMenuItems = (
 ): MenuItem[] => {
   const items = userMenuItems.map((item) => ({
     ...item,
-    badge: item.id === "orders" ? ordersBadge : undefined,
+    badge:
+      item.id === "orders" && ordersBadge && ordersBadge > 0
+        ? ordersBadge
+        : undefined,
   }));
 
   // Add coupon management for specific admin email
-  if (userEmail === 'neerajvishwakarma726689@gmail.com') {
+  if (userEmail === "neerajvishwakarma726689@gmail.com") {
     return [...items, couponAdminMenuItem];
   }
 
@@ -71,35 +74,35 @@ export const getMenuItems = (
 
 // Animation variants
 export const containerVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.95, y: -10 },
+  hidden: { opacity: 0, scale: 0.98, y: -5 },
   visible: {
     opacity: 1,
     scale: 1,
     y: 0,
     transition: {
       type: "spring",
-      stiffness: 400,
-      damping: 25,
-      staggerChildren: 0.02,
+      stiffness: 300,
+      damping: 30,
+      staggerChildren: 0.01,
     },
   },
   exit: {
     opacity: 0,
-    scale: 0.95,
-    y: -5,
-    transition: { duration: 0.15 },
+    scale: 0.98,
+    y: -3,
+    transition: { duration: 0.12 },
   },
 };
 
 export const itemVariants: Variants = {
-  hidden: { opacity: 0, x: -10 },
+  hidden: { opacity: 0, x: -5 },
   visible: {
     opacity: 1,
     x: 0,
     transition: {
       type: "spring",
-      stiffness: 500,
-      damping: 30,
+      stiffness: 400,
+      damping: 35,
     },
   },
 };

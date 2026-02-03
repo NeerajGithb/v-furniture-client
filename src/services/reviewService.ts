@@ -1,288 +1,279 @@
-import mongoose from "mongoose";
-import Review from "@/models/Review";
-import Product from "@/models/product";
-import Order from "@/models/Order";
+// Frontend review service - makes HTTP calls to API endpoints (mixed public/private)
+import { BasePrivateService, BasePublicService } from "./baseService";
+import { validateImageFiles, fileToBase64 } from "@/utils/validators";
+import {
+  Review,
+  ReviewsResponse,
+  ReviewFilters,
+  CreateReviewData,
+  UpdateReviewData,
+  VoteReviewData,
+  UploadImageResponse,
+} from "@/types/review";
 
-/**
- * Review Business Logic Service
- * All review-related business logic extracted from Review model
- */
-
-export async function getProductReviews(
-  productId: string,
-  page: number = 1,
-  limit: number = 10,
-  sortParam: string = "newest",
-  userId?: string
-) {
-  const skip = (page - 1) * limit;
-
-  let sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
-
-  switch (sortParam) {
-    case "oldest":
-      sortQuery = { createdAt: 1 };
-      break;
-    case "highest":
-      sortQuery = { rating: -1, createdAt: -1 };
-      break;
-    case "lowest":
-      sortQuery = { rating: 1, createdAt: -1 };
-      break;
-    case "helpful":
-      sortQuery = { helpfulVotes: -1, createdAt: -1 };
-      break;
-    case "verified":
-      sortQuery = { isVerifiedPurchase: -1, createdAt: -1 };
-      break;
-    default:
-      sortQuery = { createdAt: -1 };
+// Public service for reading reviews (no auth required)
+class ReviewPublicService extends BasePublicService {
+  constructor() {
+    super("/api");
   }
 
-  const reviews = await Review.find({
-    productId: new mongoose.Types.ObjectId(productId),
-    status: "approved",
-  })
-    .populate("userId", "name photoURL email")
-    .sort(sortQuery)
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  // Get reviews for a product (public - no auth required)
+  async getReviews(filters: ReviewFilters): Promise<ReviewsResponse> {
+    const params: Record<string, string> = {
+      productId: filters.productId,
+      page: filters.page?.toString() || "1",
+      limit: filters.limit?.toString() || "10",
+    };
 
-  if (userId && reviews.length > 0) {
-    try {
-      const UserVote = mongoose.model("UserVote");
-      const reviewIds = reviews.map((r: any) => r._id);
-
-      const userVotes = await UserVote.find({
-        userId: new mongoose.Types.ObjectId(userId),
-        reviewId: { $in: reviewIds },
-      }).lean();
-
-      const voteMap = userVotes.reduce((acc: any, vote: any) => {
-        acc[vote.reviewId.toString()] = vote.voteType;
-        return acc;
-      }, {});
-
-      return reviews.map((review: any) => ({
-        ...review,
-        userVote: voteMap[review._id.toString()] || null,
-      }));
-    } catch (error) {
-      console.error("Error fetching user votes:", error);
+    if (filters.rating && filters.rating !== "all") {
+      params.rating = filters.rating;
     }
-  }
 
-  return reviews.map((review: any) => ({
-    ...review,
-    userVote: null,
-  }));
-}
+    if (filters.sort) {
+      params.sort = filters.sort;
+    }
 
-export async function getReviewStats(productId: string) {
-  try {
-    const stats = await Review.aggregate([
-      {
-        $match: {
-          productId: new mongoose.Types.ObjectId(productId),
-          status: "approved",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalReviews: { $sum: 1 },
-          averageRating: { $avg: "$rating" },
-          ratingBreakdown: { $push: "$rating" },
-          verifiedCount: { $sum: { $cond: ["$isVerifiedPurchase", 1, 0] } },
-          totalHelpfulVotes: { $sum: "$helpfulVotes" },
-          totalUnhelpfulVotes: { $sum: "$unhelpfulVotes" },
-        },
-      },
-      {
-        $addFields: {
-          breakdown: {
-            5: {
-              $size: {
-                $filter: {
-                  input: "$ratingBreakdown",
-                  cond: { $eq: ["$$this", 5] },
-                },
-              },
-            },
-            4: {
-              $size: {
-                $filter: {
-                  input: "$ratingBreakdown",
-                  cond: { $eq: ["$$this", 4] },
-                },
-              },
-            },
-            3: {
-              $size: {
-                $filter: {
-                  input: "$ratingBreakdown",
-                  cond: { $eq: ["$$this", 3] },
-                },
-              },
-            },
-            2: {
-              $size: {
-                $filter: {
-                  input: "$ratingBreakdown",
-                  cond: { $eq: ["$$this", 2] },
-                },
-              },
-            },
-            1: {
-              $size: {
-                $filter: {
-                  input: "$ratingBreakdown",
-                  cond: { $eq: ["$$this", 1] },
-                },
-              },
-            },
-          },
-          verifiedPercentage: {
-            $cond: {
-              if: { $eq: ["$totalReviews", 0] },
-              then: 0,
-              else: {
-                $multiply: [
-                  { $divide: ["$verifiedCount", "$totalReviews"] },
-                  100,
-                ],
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalReviews: 1,
-          averageRating: { $round: [{ $ifNull: ["$averageRating", 0] }, 1] },
-          breakdown: 1,
-          verifiedCount: 1,
-          verifiedPercentage: {
-            $round: [{ $ifNull: ["$verifiedPercentage", 0] }, 1],
-          },
-          totalHelpfulVotes: 1,
-          totalUnhelpfulVotes: 1,
-        },
-      },
-    ]);
-
+    const response = await this.get<{ data: ReviewsResponse }>(
+      "/reviews",
+      params,
+    );
     return (
-      stats[0] || {
-        totalReviews: 0,
-        averageRating: 0,
-        breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-        verifiedCount: 0,
-        verifiedPercentage: 0,
-        totalHelpfulVotes: 0,
-        totalUnhelpfulVotes: 0,
+      response.data?.data || {
+        reviews: [],
+        stats: {
+          totalReviews: 0,
+          averageRating: 0,
+          breakdown: {},
+        },
+        hasMore: false,
+        userHasReviewed: false,
       }
     );
-  } catch (error) {
-    console.error("Error in getReviewStats:", error);
-    return {
-      totalReviews: 0,
-      averageRating: 0,
-      breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-      verifiedCount: 0,
-      verifiedPercentage: 0,
-      totalHelpfulVotes: 0,
-      totalUnhelpfulVotes: 0,
+  }
+}
+
+// Private service for user actions (auth required)
+class ReviewPrivateService extends BasePrivateService {
+  constructor() {
+    super("/api");
+  }
+
+  // Create a new review
+  async createReview(reviewData: CreateReviewData): Promise<Review> {
+    const response = await this.post<{ data: { review: Review } }>(
+      "/reviews",
+      reviewData,
+    );
+    return response.data?.data?.review || ({} as Review);
+  }
+
+  // Update an existing review
+  async updateReview(
+    reviewId: string,
+    reviewData: UpdateReviewData,
+  ): Promise<Review> {
+    // API expects productId in the update data
+    const updateData = {
+      ...reviewData,
+      productId: reviewData.productId || reviewId, // Fallback if productId not provided
     };
+
+    const response = await this.patch<{ data: { review: Review } }>(
+      "/reviews",
+      updateData,
+    );
+    return response.data?.data?.review || ({} as Review);
   }
-}
 
-export async function approveReview(review: any, moderatorNote?: string) {
-  review.status = "approved";
-  if (moderatorNote) review.moderatorNote = moderatorNote;
-  return review.save();
-}
-
-export async function rejectReview(review: any, moderatorNote?: string) {
-  review.status = "rejected";
-  if (moderatorNote) review.moderatorNote = moderatorNote;
-  return review.save();
-}
-
-export async function addHelpfulVote(review: any) {
-  review.helpfulVotes = (review.helpfulVotes || 0) + 1;
-  return review.save();
-}
-
-export async function addUnhelpfulVote(review: any) {
-  review.unhelpfulVotes = (review.unhelpfulVotes || 0) + 1;
-  return review.save();
-}
-
-export async function reportReview(review: any) {
-  review.reportedCount = (review.reportedCount || 0) + 1;
-  if (review.reportedCount >= 5) {
-    review.status = "pending";
+  // Delete a review
+  async deleteReview(reviewId: string): Promise<void> {
+    await this.delete(`/reviews/${reviewId}`);
   }
-  return review.save();
-}
 
-export async function verifyPurchase(
-  orderId: string,
-  userId: string,
-  productId: string
-): Promise<boolean> {
-  try {
-    const order = await Order.findOne({
-      _id: orderId,
-      userId,
-      orderStatus: { $in: ["delivered", "completed"] },
+  // Vote on a review (helpful/unhelpful)
+  async voteReview(voteData: VoteReviewData): Promise<void> {
+    await this.post("/reviews?action=vote", voteData);
+  }
+
+  // Report a review
+  async reportReview(reviewId: string): Promise<void> {
+    await this.post("/reviews?action=report", { reviewId });
+  }
+
+  // Upload review images
+  // Upload review images
+  async uploadReviewImages(
+    files: FileList | File[],
+  ): Promise<UploadImageResponse[]> {
+    // Validate files using centralized validator
+    const validation = validateImageFiles(files);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    const uploadPromises = Array.from(files).map(async (file) => {
+      // Convert file to base64 using centralized utility
+      const fileResult = await fileToBase64(file);
+
+      const response = await this.post<{ data: UploadImageResponse }>(
+        "/upload",
+        {
+          image: fileResult,
+          folder: "reviews",
+        },
+      );
+
+      return response.data?.data || { url: "", publicId: "" };
     });
 
-    if (
-      order &&
-      order.items.some(
-        (item: any) => item.productId.toString() === productId.toString()
-      )
-    ) {
-      return true;
+    return Promise.all(uploadPromises);
+  }
+
+  // Upload review images with progress tracking
+  async uploadReviewImagesWithProgress(
+    files: FileList | File[],
+    onProgress?: (progress: number) => void,
+  ): Promise<UploadImageResponse[]> {
+    // Validate files using centralized validator
+    const validation = validateImageFiles(files);
+    if (!validation.valid) {
+      throw new Error(validation.error);
     }
-  } catch (error) {
-    console.error("Error verifying purchase:", error);
-  }
-  return false;
-}
 
-export async function autoApproveReview(review: any): Promise<void> {
-  if (review.isVerifiedPurchase && review.status === "pending") {
-    review.status = "approved";
-  } else if (review.status === "pending") {
-    const commentLength = review.comment?.trim().length || 0;
-    if (commentLength >= 20 && commentLength <= 500) {
-      review.status = "approved";
+    const fileArray = Array.from(files);
+    const results: UploadImageResponse[] = [];
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "reviews");
+
+      const response = await this.upload<{ data: UploadImageResponse }>(
+        "/upload",
+        formData,
+        {
+          onProgress: (fileProgress: number) => {
+            // Calculate overall progress across all files
+            const overallProgress = Math.round(
+              (i * 100 + fileProgress) / fileArray.length,
+            );
+            onProgress?.(overallProgress);
+          },
+        },
+      );
+
+      results.push(response.data?.data || { url: "", publicId: "" });
+    }
+
+    return results;
+  }
+
+  // Get user's review for a product by fetching and filtering reviews
+  async getUserReview(productId: string): Promise<Review | null> {
+    try {
+      // Use the public service to fetch reviews
+      const publicService = new ReviewPublicService();
+      const reviewsResponse = await publicService.getReviews({
+        productId,
+        limit: 100,
+      });
+
+      // The API response includes userHasReviewed flag, but we need the actual review
+      // Filter reviews to find the current user's review (this requires the API to include user info)
+      const userReview = reviewsResponse.reviews.find(
+        (review: Review) => review.user && review.user._id, // This assumes the API populates user info
+      );
+
+      return userReview || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Check if user can review a product by checking existing reviews
+  async canUserReview(productId: string): Promise<boolean> {
+    try {
+      // Use the public service to fetch reviews
+      const publicService = new ReviewPublicService();
+      const reviewsResponse = await publicService.getReviews({
+        productId,
+        limit: 1,
+      });
+
+      // The API response includes userHasReviewed flag
+      return !reviewsResponse.userHasReviewed;
+    } catch (error) {
+      return true; // Default to allowing reviews on error
     }
   }
 }
 
-export function validateReviewImages(images: any[]): { valid: boolean; error?: string } {
-  if (images && images.length > 5) {
-    return { valid: false, error: "Maximum 5 images allowed per review" };
+// Combined service that uses both public and private services
+class ReviewService {
+  private publicService: ReviewPublicService;
+  private privateService: ReviewPrivateService;
+
+  constructor() {
+    this.publicService = new ReviewPublicService();
+    this.privateService = new ReviewPrivateService();
   }
-  return { valid: true };
+
+  // Public methods (no auth required)
+  async getReviews(filters: ReviewFilters): Promise<ReviewsResponse> {
+    return this.publicService.getReviews(filters);
+  }
+
+  // Private methods (auth required)
+  async createReview(reviewData: CreateReviewData): Promise<Review> {
+    return this.privateService.createReview(reviewData);
+  }
+
+  async updateReview(
+    reviewId: string,
+    reviewData: UpdateReviewData,
+  ): Promise<Review> {
+    return this.privateService.updateReview(reviewId, reviewData);
+  }
+
+  async deleteReview(reviewId: string): Promise<void> {
+    return this.privateService.deleteReview(reviewId);
+  }
+
+  async voteReview(voteData: VoteReviewData): Promise<void> {
+    return this.privateService.voteReview(voteData);
+  }
+
+  async reportReview(reviewId: string): Promise<void> {
+    return this.privateService.reportReview(reviewId);
+  }
+
+  async uploadReviewImages(
+    files: FileList | File[],
+  ): Promise<UploadImageResponse[]> {
+    return this.privateService.uploadReviewImages(files);
+  }
+
+  async uploadReviewImagesWithProgress(
+    files: FileList | File[],
+    onProgress?: (progress: number) => void,
+  ): Promise<UploadImageResponse[]> {
+    return this.privateService.uploadReviewImagesWithProgress(
+      files,
+      onProgress,
+    );
+  }
+
+  async getUserReview(productId: string): Promise<Review | null> {
+    return this.privateService.getUserReview(productId);
+  }
+
+  async canUserReview(productId: string): Promise<boolean> {
+    return this.privateService.canUserReview(productId);
+  }
 }
 
-export async function updateProductRatings(productId: string): Promise<void> {
-  try {
-    const stats = await getReviewStats(productId);
-
-    await Product.findByIdAndUpdate(productId, {
-      ratings: stats.averageRating,
-      "reviews.average": stats.averageRating,
-      "reviews.count": stats.totalReviews,
-      "reviews.breakdown": stats.breakdown,
-    });
-  } catch (error) {
-    console.error("Error updating product ratings:", error);
-  }
-}
+// Export singleton instance
+export const reviewService = new ReviewService();

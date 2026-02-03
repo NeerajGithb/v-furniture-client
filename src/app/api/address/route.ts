@@ -1,160 +1,59 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { withAuth, AuthenticatedUser } from "@/lib/middleware/auth";
-import Address from "@/models/Address";
-import { connectDB } from "@/lib/dbConnect";
+import { withDB } from "@/lib/middleware/dbConnection";
+import { withRouteErrorHandling } from "@/lib/middleware/errorHandler";
+import { addressService } from "@/lib/domain/address/AddressService";
 import {
-  getCached,
-  setCache,
-  invalidateCacheByPrefix,
-  CACHE_TTL,
-} from "@/lib/cache";
+  CreateAddressSchema,
+  PaginationSchema,
+} from "@/lib/domain/address/AddressSchemas";
+import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
 
 export const GET = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const cacheKey = `addresses:user:${user.userId}`;
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const { searchParams } = new URL(request.url);
+        const page = searchParams.get("page");
+        const limit = searchParams.get("limit");
+        const legacy = searchParams.get("legacy") === "true";
 
-      const cached = await getCached<any>(cacheKey);
-      if (cached) {
-        return NextResponse.json(cached);
-      }
+        if (legacy) {
+          const result = await addressService.getUserAddressesLegacy(
+            user.userId,
+          );
+          return ApiResponseBuilder.success(result);
+        }
 
-      await connectDB();
+        // Parse pagination with Zod
+        const pagination = PaginationSchema.parse({ page, limit });
 
-      const addresses = await Address.find({ userId: user.userId }).sort({
-        isDefault: -1,
-        createdAt: -1,
-      });
-
-      const result = {
-        addresses: addresses.map((addr) => ({
-          _id: addr._id,
-          type: addr.type,
-          fullName: addr.fullName,
-          phone: addr.phone,
-          addressLine1: addr.addressLine1,
-          addressLine2: addr.addressLine2,
-          city: addr.city,
-          state: addr.state,
-          postalCode: addr.postalCode,
-          country: addr.country,
-          isDefault: addr.isDefault,
-          createdAt: addr.createdAt,
-        })),
-      };
-
-      await setCache(cacheKey, result, CACHE_TTL.ADDRESSES);
-
-      return NextResponse.json(result);
-    } catch (error) {
-      console.error("Address GET error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch addresses" },
-        { status: 500 },
-      );
-    }
-  },
+        const result = await addressService.getUserAddresses(
+          user.userId,
+          pagination.page,
+          pagination.limit,
+        );
+        return ApiResponseBuilder.paginated(result.items, result.pagination);
+      },
+    ),
+  ),
 );
 
 export const POST = withAuth(
-  async (request: NextRequest, user: AuthenticatedUser) => {
-    try {
-      const body = await request.json();
-      const {
-        type,
-        fullName,
-        phone,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        postalCode,
-        country,
-        isDefault,
-      } = body;
+  withDB(
+    withRouteErrorHandling(
+      async (request: NextRequest, user: AuthenticatedUser) => {
+        const body = await request.json();
 
-      if (
-        !fullName?.trim() ||
-        !phone?.trim() ||
-        !addressLine1?.trim() ||
-        !city?.trim() ||
-        !state?.trim() ||
-        !postalCode?.trim()
-      ) {
-        return NextResponse.json(
-          { error: "Required fields are missing" },
-          { status: 400 },
+        // Validate at route boundary with Zod
+        const validatedData = CreateAddressSchema.parse(body);
+
+        const result = await addressService.createAddress(
+          user.userId,
+          validatedData,
         );
-      }
-
-      const phoneRegex = /^[6-9]\d{9}$/;
-      if (!phoneRegex.test(phone.trim().replace(/\s+/g, ""))) {
-        return NextResponse.json(
-          { error: "Invalid phone number format" },
-          { status: 400 },
-        );
-      }
-
-      const pinCodeRegex = /^[0-9]{6}$/;
-      if (!pinCodeRegex.test(postalCode.trim())) {
-        return NextResponse.json(
-          { error: "Invalid postal code format" },
-          { status: 400 },
-        );
-      }
-
-      await connectDB();
-
-      const existingAddressCount = await Address.countDocuments({
-        userId: user.userId,
-      });
-
-      const shouldBeDefault = existingAddressCount === 0 || isDefault;
-
-      if (shouldBeDefault) {
-        await Address.updateMany({ userId: user.userId }, { isDefault: false });
-      }
-
-      const newAddress = new Address({
-        userId: user.userId,
-        type: type || "home",
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        addressLine1: addressLine1.trim(),
-        addressLine2: addressLine2?.trim() || "",
-        city: city.trim(),
-        state: state.trim(),
-        postalCode: postalCode.trim(),
-        country: country || "India",
-        isDefault: shouldBeDefault,
-      });
-
-      await newAddress.save();
-
-      await invalidateCacheByPrefix(`addresses:user:${user.userId}`);
-
-      return NextResponse.json({
-        message: "Address added successfully",
-        address: {
-          _id: newAddress._id,
-          type: newAddress.type,
-          fullName: newAddress.fullName,
-          phone: newAddress.phone,
-          addressLine1: newAddress.addressLine1,
-          addressLine2: newAddress.addressLine2,
-          city: newAddress.city,
-          state: newAddress.state,
-          postalCode: newAddress.postalCode,
-          country: newAddress.country,
-          isDefault: newAddress.isDefault,
-        },
-      });
-    } catch (error) {
-      console.error("Address POST error:", error);
-      return NextResponse.json(
-        { error: "Failed to add address" },
-        { status: 500 },
-      );
-    }
-  },
+        return ApiResponseBuilder.success(result, 201);
+      },
+    ),
+  ),
 );

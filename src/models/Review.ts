@@ -18,6 +18,11 @@ export interface IReview extends Document {
   reportedCount: number;
   status: "pending" | "approved" | "rejected";
   moderatorNote?: string;
+  sellerResponse?: {
+    message: string;
+    respondedAt: Date;
+    updatedAt?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
   reportReview(): Promise<void>;
@@ -117,6 +122,22 @@ const ReviewSchema = new Schema<IReview>(
       trim: true,
       maxlength: 500,
     },
+    sellerResponse: {
+      message: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 1000,
+      },
+      respondedAt: {
+        type: Date,
+        required: true,
+        default: Date.now,
+      },
+      updatedAt: {
+        type: Date,
+      },
+    },
   },
   {
     timestamps: true,
@@ -190,12 +211,12 @@ ReviewSchema.statics.getReviewStats = async function (productId: string) {
 // Instance method to report a review
 ReviewSchema.methods.reportReview = async function () {
   this.reportedCount += 1;
-  
+
   // If reported multiple times, change status to pending for moderation
   if (this.reportedCount >= 3) {
     this.status = "pending";
   }
-  
+
   await this.save();
 };
 

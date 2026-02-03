@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-export default function ConfettiEffect({ duration = 3000 }: { duration?: number }) {
+export default function ConfettiEffect({
+  duration = 3000,
+}: {
+  duration?: number;
+}) {
   const [visible, setVisible] = useState(true);
-  const [pieces, setPieces] = useState<Array<{ left: string; delay: string; size: string; color: string }>>([]);
+  const [pieces, setPieces] = useState<
+    Array<{ left: string; delay: string; size: string; color: string }>
+  >([]);
 
   useEffect(() => {
     setPieces(
@@ -12,10 +18,10 @@ export default function ConfettiEffect({ duration = 3000 }: { duration?: number 
         left: `${Math.random() * 100}vw`,
         delay: `${Math.random() * 2}s`,
         size: `${Math.random() * 8 + 6}px`,
-        color: ['#22c55e', '#3b82f6', '#f43f5e', '#f59e0b', '#9333ea'][
+        color: ["#22c55e", "#3b82f6", "#f43f5e", "#f59e0b", "#9333ea"][
           Math.floor(Math.random() * 5)
         ],
-      }))
+      })),
     );
   }, []);
 
@@ -39,7 +45,7 @@ export default function ConfettiEffect({ duration = 3000 }: { duration?: number 
               height: piece.size,
               backgroundColor: piece.color,
               animationDelay: piece.delay,
-              borderRadius: '2px',
+              borderRadius: "2px",
               opacity: 0.9,
             }}
           />

@@ -11,12 +11,11 @@ export function normalizeFineIntent(raw?: string | any): string | any {
 }
 
 export function resolveCanonicalIntent(
-  fineIntent?: string | null
+  fineIntent?: string | null,
 ): CanonicalIntent {
   if (!fineIntent) return "UNKNOWN";
 
   const normalized = normalizeFineIntent(fineIntent);
-  console.log("Normalized fine intent:", normalized);
   for (const [canonical, aliases] of Object.entries(INTENT_ALIASES)) {
     if (aliases.includes(normalized)) {
       return canonical as CanonicalIntent;

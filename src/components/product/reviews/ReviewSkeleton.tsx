@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 const ReviewSkeleton = () => (
   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-sm p-4 space-y-3 animate-pulse">
@@ -13,7 +13,10 @@ const ReviewSkeleton = () => (
           {Array(5)
             .fill(0)
             .map((_, i) => (
-              <div key={i} className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div
+                key={i}
+                className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded"
+              ></div>
             ))}
           <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 ml-2"></div>
         </div>

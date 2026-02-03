@@ -2,16 +2,12 @@
 
 import { extractJSON } from "@/utils/extractJSON";
 import { callGroq } from "./groqClient";
-import {
-  generateDynamicUnderstandPrompt,
-} from "./prompts/dynamicUnderstandPrompt";
+import { generateDynamicUnderstandPrompt } from "./prompts/dynamicUnderstandPrompt";
 import { UnderstandingResult } from "@/types/ai";
 import { findExactMatch } from "./utils/predefinedQuestions";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY_UNDERSTAND;
 const GROQ_MODEL = process.env.GROQ_MODEL_UNDERSTAND;
-const LOG_PREFIX = "[Understand]";
-
 // File is pre-generated, don't write in runtime
 // function writePatternToFile(pattern: string) {
 //   const filePath = path.join(process.cwd(), "all_patterns.txt");
@@ -35,26 +31,18 @@ function sanitizeValue(value: any): any {
 export async function understandMessage(
   userMessage: string,
   history: any[] = [],
-  currentProduct: any = null
+  currentProduct: any = null,
 ): Promise<UnderstandingResult> {
-  const startTime = Date.now();
-
   const msg = userMessage.toLowerCase().trim();
 
   // Use centralized exact match function
   const predefinedResult = findExactMatch(msg);
   if (predefinedResult) {
-    const duration = Date.now() - startTime;
-    console.log(
-      `${LOG_PREFIX} ⚡ Predefined: ${predefinedResult.fine_intent} (${duration}ms)`
-    );
     return predefinedResult;
   }
 
   if (currentProduct && isContextDependentQuestion(msg)) {
-    console.log(
-      `${LOG_PREFIX} 🎯 Context-aware: Product context available, treating as INFORMATION`
-    );
+    // Context-aware: Product context available, treating as INFORMATION
   }
 
   const lastUnderstanding =
@@ -95,13 +83,12 @@ export async function understandMessage(
       {
         apiKey: GROQ_API_KEY!,
         model: GROQ_MODEL!,
-      }
+      },
     );
 
     const parsed = extractJSON(response);
 
     if (!parsed) {
-      console.error(`${LOG_PREFIX} ❌ JSON extraction failed`);
       return createFallbackUnderstanding();
     }
 
@@ -139,15 +126,8 @@ export async function understandMessage(
       confidence: sanitizeValue(parsed.confidence) || "",
     };
 
-    const duration = Date.now() - startTime;
-    console.log(
-      `${LOG_PREFIX} ✓ Groq: ${result.fine_intent} | ${result.confidence} (${duration}ms)`
-    );
-
     return result;
   } catch (error: any) {
-    const duration = Date.now() - startTime;
-    console.error(`${LOG_PREFIX} ❌ Error: ${error.message} (${duration}ms)`);
     return createFallbackUnderstanding();
   }
 }

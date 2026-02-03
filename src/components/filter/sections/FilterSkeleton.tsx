@@ -1,4 +1,4 @@
-import { FilterSection } from './FilterSection';
+import { FilterSection } from "./FilterSection";
 
 interface SkeletonItemProps {
   hasRadio?: boolean;
@@ -21,12 +21,12 @@ interface FilterSkeletonProps {
   hasRadio?: boolean;
 }
 
-export const FilterSkeleton = ({ 
-  title, 
-  isExpanded, 
-  onToggle, 
+export const FilterSkeleton = ({
+  title,
+  isExpanded,
+  onToggle,
   itemCount = 5,
-  hasRadio = true 
+  hasRadio = true,
 }: FilterSkeletonProps) => (
   <FilterSection title={title} isExpanded={isExpanded} onToggle={onToggle}>
     <div className="space-y-1.5">
@@ -37,14 +37,18 @@ export const FilterSkeleton = ({
   </FilterSection>
 );
 
-export const PriceRangeSkeleton = ({ 
-  isExpanded, 
-  onToggle 
-}: { 
-  isExpanded: boolean; 
+export const PriceRangeSkeleton = ({
+  isExpanded,
+  onToggle,
+}: {
+  isExpanded: boolean;
   onToggle: () => void;
 }) => (
-  <FilterSection title="Price Range" isExpanded={isExpanded} onToggle={onToggle}>
+  <FilterSection
+    title="Price Range"
+    isExpanded={isExpanded}
+    onToggle={onToggle}
+  >
     <div className="py-2 animate-pulse">
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-4" />
       <div className="flex justify-between">

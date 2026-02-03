@@ -48,11 +48,16 @@ export const useProductActions = (
     if (!product || isOutOfStock) return setError("Product is out of stock");
 
     try {
-      await addToCartMutation.mutateAsync({
+      const payload = {
         productId: product._id,
-        quantity,
-      });
+        quantity: Number(quantity), // Ensure it's a number
+      };
+      
+      console.log("Adding to cart with payload:", payload);
+      
+      await addToCartMutation.mutateAsync(payload);
     } catch (e: any) {
+      console.error("Add to cart error:", e);
       setError(e?.message || "Failed to add to cart");
     }
   };
@@ -104,6 +109,8 @@ export const useProductActions = (
         productId: product._id,
         quantity: quantity,
         itemTotal: itemTotal,
+        addedAt: new Date().toISOString(),
+        selectedVariant: undefined, // Optional field
         product: {
           _id: product._id,
           name: product.name || "",
@@ -111,6 +118,7 @@ export const useProductActions = (
           originalPrice: product.originalPrice,
           discountPercent: product.discountPercent,
           mainImage: product.mainImage,
+          inStockQuantity: product.inStockQuantity || 0,
           isInStock: !isOutOfStock,
         },
       };

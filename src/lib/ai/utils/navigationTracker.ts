@@ -26,7 +26,6 @@ class NavigationTracker {
     const checkUrlChange = () => {
       const newUrl = this.getCurrentUrl();
       if (newUrl !== this.currentUrl) {
-        console.log(`[NavTracker] URL changed: ${this.currentUrl} → ${newUrl}`);
         this.currentUrl = newUrl;
         this.triggerCallbacks(newUrl);
       }
@@ -65,8 +64,6 @@ class NavigationTracker {
         normalized === normalizedTarget ||
         normalized.startsWith(normalizedTarget.split("?")[0])
       ) {
-        console.log(`[NavTracker] ✓ Match found for: ${targetUrl}`);
-
         const timeout = this.timeouts.get(targetUrl);
         if (timeout) clearTimeout(timeout);
 
@@ -81,13 +78,10 @@ class NavigationTracker {
     const normalized = this.normalizeUrl(targetUrl);
     const current = this.normalizeUrl(this.currentUrl);
 
-    console.log(`[NavTracker] Registered: ${normalized}`);
-
     if (
       current === normalized ||
       current.startsWith(normalized.split("?")[0])
     ) {
-      console.log(`[NavTracker] Already there, firing immediately`);
       setTimeout(callback, 0);
       return;
     }
@@ -99,7 +93,6 @@ class NavigationTracker {
 
     // Timeout fallback (3s)
     const timeout = setTimeout(() => {
-      console.log(`[NavTracker] Timeout for: ${targetUrl}`);
       const cbs = this.callbacks.get(targetUrl);
       if (cbs) {
         cbs.forEach((cb) => cb());

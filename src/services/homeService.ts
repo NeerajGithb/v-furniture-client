@@ -1,38 +1,90 @@
-import { handleApiResponse } from '@/utils/fetchWithCredentials';
-import { IInspiration, Product } from '@/types/Product';
+import { BasePublicService } from "./baseService";
+import { IInspiration, Product } from "@/types/Product";
+import {
+  HomeData,
+  InspirationFilters,
+  RelatedProductsFilters,
+  CategoryProductsResponse,
+  RelatedProductsResponse,
+} from "@/types/home";
 
-export async function fetchInspirations(): Promise<IInspiration[]> {
-  const res = await fetch('/api/inspirations', { credentials: 'include' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  const data = await handleApiResponse(res);
-  return Array.isArray(data) ? data : data.inspirations || [];
-}
-
-export async function fetchInspirationBySlug(slug: string): Promise<IInspiration> {
-  const res = await fetch(`/api/inspirations/${slug}`);
-  if (!res.ok) {
-    if (res.status === 404) throw new Error('Inspiration not found');
-    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+class HomeService extends BasePublicService {
+  constructor() {
+    super("/api");
   }
-  return handleApiResponse(res);
+
+  async getInspirations(
+    filters: InspirationFilters = {},
+  ): Promise<IInspiration[]> {
+    const params = {
+      ...(filters.limit && { limit: filters.limit.toString() }),
+      ...(filters.sort && { sort: filters.sort }),
+      ...(filters.category && { category: filters.category }),
+    };
+
+    const response = await this.get<{ items: IInspiration[]; pagination: any }>(
+      "/inspirations",
+      params,
+    );
+    return response.data?.items || [];
+  }
+
+//get inspiration by slug
+  async getInspirationBySlug(slug: string): Promise<IInspiration> {
+    const response = await this.get<IInspiration>(`/inspirations/${slug}`);
+
+    if (!response.data) {
+      throw new Error("Inspiration not found");
+    }
+
+    return response.data;
+  }
+
+//get category products
+  async getCategoryProducts(
+    categoryId: string,
+  ): Promise<CategoryProductsResponse> {
+    // This would use the products API with category filter
+    const response = await this.get<CategoryProductsResponse>(
+      `/products?category=${categoryId}&limit=20`,
+    );
+
+    return response.data || { products: [] };
+  }
+
+//get related products
+  async getRelatedProducts(
+    filters: RelatedProductsFilters,
+  ): Promise<Product[]> {
+    const params = {
+      slug: filters.inspirationSlug,
+      relatedProducts: "true",
+      limit: filters.limit?.toString() || "20",
+      ...(filters.sort && { sort: filters.sort }),
+    };
+
+    const response = await this.get<RelatedProductsResponse>(
+      "/inspirations",
+      params,
+    );
+
+    return response.data?.products || [];
+  }
+
+ //get home page data
+  async getHomeData(): Promise<HomeData> {
+    const inspirations = await this.getInspirations({
+      limit: 10,
+      sort: "newest",
+    });
+
+    return {
+      inspirations,
+      featuredProducts: [],
+      categories: [],
+    };
+  }
 }
 
-export async function fetchCategoryProducts(
-  categoryId: string,
-): Promise<{ products: Product[]; slug?: string }> {
-  const res = await fetch(`/api/products/showcase/${categoryId}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  return handleApiResponse(res);
-}
-
-export async function fetchRelatedProducts(
-  inspirationSlug: string,
-  limit = 20,
-  sort: 'newest' | 'oldest' | 'popular' = 'newest',
-): Promise<Product[]> {
-  const params = new URLSearchParams({ slug: inspirationSlug, limit: limit.toString(), sort });
-  const res = await fetch(`/api/inspirations/relatedProduct?${params.toString()}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  const data = await handleApiResponse(res);
-  return data.products || [];
-}
+// Export singleton instance
+export const homeService = new HomeService();

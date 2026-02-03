@@ -7,29 +7,29 @@ export interface IPayment extends Document {
   amount: number;
   currency: string;
   method:
-  | "card"
-  | "upi"
-  | "netbanking"
-  | "cod"
-  | "wallet"
-  | "razorpay"
-  | "stripe"
-  | "paytm"
-  | "phonepe"
-  | "googlepay";
+    | "card"
+    | "upi"
+    | "netbanking"
+    | "cod"
+    | "wallet"
+    | "razorpay"
+    | "stripe"
+    | "paytm"
+    | "phonepe"
+    | "googlepay";
   status: "pending" | "success" | "failed" | "cancelled" | "refunded";
   gateway:
-  | "razorpay"
-  | "stripe"
-  | "paytm"
-  | "phonepe"
-  | "googlepay"
-  | "mock"
-  | "offline";
+    | "razorpay"
+    | "stripe"
+    | "paytm"
+    | "phonepe"
+    | "googlepay"
+    | "mock"
+    | "offline";
   gatewayTransactionId?: string;
   gatewayPaymentId?: string;
   gatewayResponse?: any;
-    paidAt?: Date;
+  paidAt?: Date;
   refundId?: string;
   refundAmount?: number;
   refundedAt?: Date;

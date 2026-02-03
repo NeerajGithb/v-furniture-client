@@ -1,8 +1,8 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IAddress extends Document {
   userId: Schema.Types.ObjectId;
-  type: 'home' | 'work' | 'other';
+  type: "home" | "work" | "other";
   fullName: string;
   phone: string;
   addressLine1: string;
@@ -20,60 +20,52 @@ const AddressSchema = new Schema<IAddress>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     type: {
       type: String,
-      enum: ['home', 'work', 'other'],
-      default: 'home',
+      enum: ["home", "work", "other"],
+      default: "home",
     },
     fullName: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 100,
     },
     phone: {
       type: String,
       required: true,
       trim: true,
-      match: /^[+]?[1-9][\d]{0,15}$/,
     },
     addressLine1: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 200,
     },
     addressLine2: {
       type: String,
       trim: true,
-      maxlength: 200,
     },
     city: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 50,
     },
     state: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 50,
     },
     postalCode: {
       type: String,
       required: true,
       trim: true,
-      match: /^[0-9]{6}$/,
     },
     country: {
       type: String,
       required: true,
-      default: 'India',
-      maxlength: 50,
+      default: "India",
     },
     isDefault: {
       type: Boolean,
@@ -88,14 +80,5 @@ const AddressSchema = new Schema<IAddress>(
 AddressSchema.index({ userId: 1 });
 AddressSchema.index({ userId: 1, isDefault: 1 });
 
-// Pre-save hook to ensure only one default address per user
-AddressSchema.pre('save', async function (next) {
-  if (this.isDefault && this.isModified('isDefault')) {
-    await mongoose
-      .model('Address')
-      .updateMany({ userId: this.userId, _id: { $ne: this._id } }, { isDefault: false });
-  }
-  next();
-});
-
-export default mongoose.models.Address || mongoose.model<IAddress>('Address', AddressSchema);
+export default mongoose.models.Address ||
+  mongoose.model<IAddress>("Address", AddressSchema);

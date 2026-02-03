@@ -7,8 +7,6 @@ import { resolveCanonicalIntent } from "./utils/resolveIntent";
 import { normalizeActionType, normalizeInfoType } from "./utils/normalizeTypes";
 import { normalizeInfoEntity } from "./utils/normalizeInfoEntity";
 
-const LOG_PREFIX = "[Decision]";
-
 export interface DecisionResult {
   action: string;
   actionType?: string;
@@ -31,12 +29,8 @@ export async function makeDecision(
   state: any,
   understanding: UnderstandingResult,
   currentProductData: any = null,
-  conversationId: string
+  conversationId: string,
 ): Promise<DecisionResult> {
-  console.log(
-    `${LOG_PREFIX} Intent: ${understanding.coarse_intent} | Fine: ${understanding.fine_intent} | Message: "${understanding.whatUserWants}"`
-  );
-
   const canonicalIntent = resolveCanonicalIntent(understanding.fine_intent);
   const normalizedActionType = normalizeActionType(understanding.action_type);
   const normalizedInfoType = normalizeInfoType(understanding.info_type);
@@ -73,19 +67,12 @@ export async function makeDecision(
     decision.productSlug = null;
     decision.currentProductData = null;
 
-    console.log(`${LOG_PREFIX} Decision: help`);
     return decision;
   }
 
   // ========== CONFIRMATION ==========
   if (understanding.coarse_intent === "CONFIRMATION") {
     const awaiting = state?.awaitingConfirmation;
-
-    console.log(`${LOG_PREFIX} Handling CONFIRMATION intent`, {
-      awaiting,
-      isYes: understanding.confirmation.is_yes,
-      hasCurrentProduct: !!state?.currentProduct,
-    });
 
     if (
       !awaiting &&
@@ -97,12 +84,10 @@ export async function makeDecision(
       decision.shouldNavigate = false;
       decision.shouldFetchStats = false;
 
-      console.log(`${LOG_PREFIX} Implicit acknowledgement → noop`);
       return decision;
     }
 
     if (!awaiting) {
-      console.warn(`${LOG_PREFIX} CONFIRMATION without awaitingConfirmation`);
       decision.action = "clarify";
       return decision;
     }
@@ -134,10 +119,9 @@ export async function makeDecision(
       canonicalIntent === "SOCIAL"
         ? "respond_social"
         : canonicalIntent === "HELP"
-        ? "respond_help"
-        : "respond_generic";
+          ? "respond_help"
+          : "respond_generic";
 
-    console.log(`${LOG_PREFIX} Decision: ${decision.action}`);
     return decision;
   }
 
@@ -151,21 +135,18 @@ export async function makeDecision(
       if (infoEntity === "CART") {
         decision.action = "clear_cart";
         decision.actionType = "CLEAR_CART";
-        console.log(`${LOG_PREFIX} Decision: clear_cart`);
         return decision;
       }
 
       if (infoEntity === "WISHLIST") {
         decision.action = "clear_wishlist";
         decision.actionType = "CLEAR_WISHLIST";
-        console.log(`${LOG_PREFIX} Decision: clear_wishlist`);
         return decision;
       }
 
       if (infoEntity === "ORDER") {
         decision.action = "clear_orders";
         decision.actionType = "CLEAR_ORDERS";
-        console.log(`${LOG_PREFIX} Decision: clear_orders`);
         return decision;
       }
     }
@@ -175,7 +156,6 @@ export async function makeDecision(
       decision.actionType = "INVENTORY";
       decision.shouldFetchStats = true;
 
-      console.log(`${LOG_PREFIX} Decision: provide_inventory (full stats)`);
       return decision;
     }
 
@@ -184,9 +164,6 @@ export async function makeDecision(
       decision.actionType = infoEntity || "PRODUCT";
       decision.shouldFetchStats = true;
 
-      console.log(
-        `${LOG_PREFIX} Decision: provide_count for ${decision.actionType}`
-      );
       return decision;
     }
 
@@ -194,11 +171,6 @@ export async function makeDecision(
       decision.action = "check_availability";
       decision.shouldFetchProducts = true;
 
-      console.log(
-        `${LOG_PREFIX} Decision: check_availability for ${
-          decision.category || "products"
-        }`
-      );
       return decision;
     }
 
@@ -212,9 +184,6 @@ export async function makeDecision(
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = false;
 
-        console.log(
-          `${LOG_PREFIX} Decision: view_product_details (detail_level: ${decision.detailLevel}) for currentProduct`
-        );
         return decision;
       }
 
@@ -223,14 +192,10 @@ export async function makeDecision(
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = false;
 
-        console.log(
-          `${LOG_PREFIX} Decision: ask_product_selection (details requested)`
-        );
         return decision;
       }
 
       decision.action = "clarify";
-      console.log(`${LOG_PREFIX} Decision: clarify (details without context)`);
       return decision;
     }
 
@@ -248,9 +213,6 @@ export async function makeDecision(
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = false;
 
-        console.log(
-          `${LOG_PREFIX} Decision: view_product_details (legacy path) for currentProduct`
-        );
         return decision;
       }
 
@@ -259,14 +221,10 @@ export async function makeDecision(
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = false;
 
-        console.log(
-          `${LOG_PREFIX} Decision: ask_product_selection (details requested)`
-        );
         return decision;
       }
 
       decision.action = "clarify";
-      console.log(`${LOG_PREFIX} Decision: clarify (details without context)`);
       return decision;
     }
 
@@ -276,9 +234,6 @@ export async function makeDecision(
       decision.actionType = "PRODUCT_QUESTION";
       decision.productId = state.currentProduct._id;
 
-      console.log(
-        `${LOG_PREFIX} Decision: product_question (on opened product)`
-      );
       return decision;
     }
 
@@ -286,11 +241,6 @@ export async function makeDecision(
     decision.action = "provide_info";
     decision.shouldFetchProducts = !!decision.category;
 
-    console.log(
-      `${LOG_PREFIX} Decision: provide_info ${
-        decision.shouldFetchProducts ? "with product fetch" : "(no data needed)"
-      }`
-    );
     return decision;
   }
 
@@ -303,16 +253,10 @@ export async function makeDecision(
         decision.action = "browse_subcategory";
         decision.actionType = "SUBCATEGORY";
         decision.shouldRenderProducts = true;
-        console.log(
-          `${LOG_PREFIX} Decision: browse_subcategory (${decision.category}/${decision.subcategory}) - fetch products`
-        );
       } else {
         decision.action = "browse_category";
         decision.actionType = "CATEGORY";
         decision.shouldRenderProducts = true;
-        console.log(
-          `${LOG_PREFIX} Decision: browse_category (${decision.category}) - fetch products`
-        );
       }
       return decision;
     }
@@ -328,14 +272,12 @@ export async function makeDecision(
     decision.actionType = "PRODUCTS";
     decision.shouldFetchProducts = true;
     decision.shouldNavigate = true;
-    console.log(`${LOG_PREFIX} Decision: browse_all_products - fetch products`);
     return decision;
   }
 
   // ========== ACTION ==========
   if (understanding.coarse_intent === "ACTION") {
     const actionType = normalizedActionType || "";
-    console.log(`${LOG_PREFIX} Normalized Action Type: ${actionType}`);
     const resolvedProductId =
       currentProductData?._id ||
       state?.currentProduct?._id ||
@@ -463,7 +405,6 @@ export async function makeDecision(
     return decision;
   }
 
-  console.log(`${LOG_PREFIX} Decision: greeting (fallback)`);
   return decision;
 }
 

@@ -10,6 +10,9 @@ export interface Coupon {
   perUserLimit: number;
   active: boolean;
   description?: string;
+  usedCount: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface AppliedCoupon {
@@ -21,10 +24,10 @@ export interface AppliedCoupon {
 export interface CouponValidationResponse {
   valid: boolean;
   discount: number;
-  message?: string;
+  message: string;
   coupon?: {
     code: string;
-    type: "flat" | "percent";
+    type: string;
     value: number;
   };
 }

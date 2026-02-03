@@ -62,7 +62,7 @@ export interface ValidatedCoupon {
  */
 export async function validateOrderProducts(
   selectedItems: string[],
-  cartData: any[]
+  cartData: any[],
 ): Promise<{
   success: boolean;
   error?: string;
@@ -78,17 +78,13 @@ export async function validateOrderProducts(
     return { success: false, error: "Some products not found" };
   }
 
-  const productMap = new Map(
-    products.map((p: any) => [p._id.toString(), p])
-  );
+  const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
   const orderItems: ValidatedOrderItem[] = [];
   const stockUpdates = [];
 
   // Process each cart item with database prices
   for (const productId of selectedItems) {
-    const cartItem = cartData.find(
-      (item: any) => item.productId === productId
-    );
+    const cartItem = cartData.find((item: any) => item.productId === productId);
     if (!cartItem) {
       return { success: false, error: `Item missing in cart: ${productId}` };
     }
@@ -153,12 +149,12 @@ export async function validateOrderProducts(
  */
 export function calculateOrderPricing(
   orderItems: ValidatedOrderItem[],
-  insuranceEnabled: string[] = []
+  insuranceEnabled: string[] = [],
 ): OrderPricing {
   // Calculate subtotal
   const subtotal = orderItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
 
   // Calculate shipping cost (free for orders >= ₹10,000)
@@ -179,7 +175,7 @@ export function calculateOrderPricing(
   // Calculate item discount
   const itemDiscount = orderItems.reduce(
     (sum, item) => sum + (item.discount || 0) * item.quantity,
-    0
+    0,
   );
 
   return {
@@ -199,7 +195,7 @@ export async function validateAndApplyCoupon(
   couponCode: string,
   userId: string,
   currentTotal: number,
-  subtotal: number
+  subtotal: number,
 ): Promise<{
   success: boolean;
   error?: string;
@@ -270,7 +266,7 @@ export async function validateAndApplyCoupon(
  */
 export async function validateAddress(
   addressId: string,
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; error?: string; address?: any }> {
   const address = await Address.findOne({
     _id: addressId,
@@ -294,7 +290,7 @@ export async function buildOrderData(
   address: any,
   paymentMethod: string,
   insuranceEnabled: string[],
-  couponCode?: string
+  couponCode?: string,
 ) {
   const orderNumber = await generateOrderNumber();
   const trackingNumber = generateTrackingNumber();
@@ -318,7 +314,7 @@ export async function buildOrderData(
     },
     paymentMethod,
     paymentStatus: "pending",
-    orderStatus: paymentMethod === "cod" ? "confirmed" : "pending",
+    orderStatus: "pending", // All orders start as pending
     trackingNumber,
     insuranceEnabled,
     ...(couponCode && { couponCode }),

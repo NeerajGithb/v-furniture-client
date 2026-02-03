@@ -34,7 +34,7 @@ export type NavigationMeaning =
  */
 export function getNavigationMeaning(
   decision: DecisionResult,
-  state: ConversationState
+  state: ConversationState,
 ): NavigationMeaning {
   if (!decision.shouldNavigate) return null;
 

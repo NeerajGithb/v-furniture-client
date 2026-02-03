@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import AuthModal from '@/components/auth/AuthModal';
-import { useNavigate } from '@/components/NavigationLoader/useNavigate';
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import AuthModal from "@/components/auth/AuthModal";
+import { useNavigate } from "@/components/NavigationLoader/useNavigate";
 
 export default function SignInPage() {
   const [isAuthOpen, setIsAuthOpen] = useState(true);
-  const { user } = useCurrentUser();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl') || '/';
+  const returnUrl = searchParams.get("returnUrl") || "/";
 
   useEffect(() => {
     if (user?.id) {

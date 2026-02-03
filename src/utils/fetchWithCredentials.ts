@@ -1,271 +1,128 @@
-import { useAuthStore } from "@/stores/authStore";
-
-interface FetchOptions extends RequestInit {
-  skipRetry?: boolean;
-  maxRetries?: number;
-  retryDelay?: number;
+export interface ApiError extends Error {
+  status: number;
+  body: any;
+  code?: string;
 }
 
-interface RetryState {
-  isRefreshing: boolean;
-  refreshPromise: Promise<boolean> | null;
+export interface ParseError extends Error {
+  status: number;
+  body: null;
+  originalError: Error;
 }
 
-const retryState: RetryState = {
-  isRefreshing: false,
-  refreshPromise: null,
-};
-
-async function refreshAccessToken(): Promise<boolean> {
-  try {
-    const response = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+export interface TimeoutError extends Error {
+  timeout: number;
 }
 
-async function handleTokenRefresh(): Promise<boolean> {
-  // 🔥 Check if user is authenticated before attempting refresh
-  const { isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated) {
-    return false;
-  }
-
-  if (retryState.isRefreshing && retryState.refreshPromise) {
-    return retryState.refreshPromise;
-  }
-
-  retryState.isRefreshing = true;
-  retryState.refreshPromise = refreshAccessToken();
-
-  try {
-    const result = await retryState.refreshPromise;
-    return result;
-  } finally {
-    retryState.isRefreshing = false;
-    retryState.refreshPromise = null;
-  }
+export interface NetworkError extends Error {
+  cause?: Error;
 }
 
+export type FetchError = ApiError | ParseError | TimeoutError | NetworkError;
+
+// Type guard to check if error is API error (4xx/5xx with response body)
+export function isApiError(error: unknown): error is ApiError {
+  return (
+    error instanceof Error &&
+    "status" in error &&
+    "body" in error &&
+    error.body !== null
+  );
+}
+
+// Type guard to check if error is parse error (invalid JSON response)
+export function isParseError(error: unknown): error is ParseError {
+  return (
+    error instanceof Error &&
+    "originalError" in error &&
+    "body" in error &&
+    error.body === null
+  );
+}
+
+// Type guard to check if error is timeout error (request exceeded time limit)
+export function isTimeoutError(error: unknown): error is TimeoutError {
+  return error instanceof Error && "timeout" in error;
+}
+
+// Type guard to check if error is network error (connection failed)
+export function isNetworkError(error: unknown): error is NetworkError {
+  return error instanceof Error && error.name === "NetworkError";
+}
+
+// Fetch wrapper that includes credentials and handles network errors
 export async function fetchWithCredentials(
-  input: RequestInfo,
-  init?: FetchOptions,
-): Promise<Response> {
-  const { skipRetry = false, maxRetries = 1, retryDelay = 100, ...restInit } = init || {};
-
-  const options: RequestInit = {
-    ...restInit,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...restInit.headers,
-    },
-  };
-
-  let lastResponse: Response;
-  let retryCount = 0;
-
-  while (retryCount <= maxRetries) {
-    try {
-      const response = await fetch(input, options);
-      lastResponse = response;
-
-      if (response.ok) {
-        return response;
-      }
-
-      if (response.status === 401 && !skipRetry && retryCount < maxRetries) {
-        const url = typeof input === 'string' ? input : input.url;
-        
-        // Don't retry for auth endpoints
-        if (url.includes('/api/auth/refresh') || 
-            url.includes('/api/auth/logout') || 
-            url.includes('/api/auth/current-user')) {
-          return response;
-        }
-
-        const refreshed = await handleTokenRefresh();
-
-        if (refreshed) {
-          retryCount++;
-          if (retryDelay > 0) {
-            await new Promise((resolve) => setTimeout(resolve, retryDelay));
-          }
-          continue;
-        }
-      }
-
-      return response;
-    } catch (error) {
-      // Only log network errors in development
-      if (process.env.NODE_ENV === 'development') {
-        const url = typeof input === 'string' ? input : input.url;
-        console.error(`Network error for ${url}:`, error);
-      }
-      
-      if (retryCount < maxRetries && !skipRetry) {
-        retryCount++;
-        if (retryDelay > 0) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        }
-        continue;
-      }
-
-      lastResponse = new Response(JSON.stringify({ error: 'Network error', success: false }), {
-        status: 500,
-        statusText: 'Internal Server Error',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      return lastResponse;
-    }
-  }
-
-  return lastResponse!;
-}
-
-export async function fetchWithCredentialsSimple(
   input: RequestInfo,
   init?: RequestInit,
 ): Promise<Response> {
-  const options: RequestInit = {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  };
-
   try {
-    return await fetch(input, options);
-  } catch {
-    return new Response(JSON.stringify({ error: 'Network error', success: false }), {
-      status: 500,
-      statusText: 'Internal Server Error',
+    const headers: Record<string, string> = {};
+
+    if (!(init?.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    const response = await fetch(input, {
+      ...init,
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
-}
-
-export async function fetchWithCredentialsBackoff(
-  input: RequestInfo,
-  init?: FetchOptions & { baseDelay?: number },
-): Promise<Response> {
-  const { maxRetries = 3, baseDelay = 1000, skipRetry = false, ...restInit } = init || {};
-
-  let retryCount = 0;
-
-  while (retryCount <= maxRetries) {
-    try {
-      const response = await fetchWithCredentials(input, {
-        ...restInit,
-        skipRetry: retryCount > 0,
-        maxRetries: 0,
-      });
-
-      if (response.ok || skipRetry || ![401, 500, 502, 503, 504].includes(response.status)) {
-        return response;
-      }
-
-      if (retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount) + Math.random() * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-
-      retryCount++;
-    } catch {
-      if (retryCount >= maxRetries) {
-        return new Response(JSON.stringify({ error: 'Max retries exceeded', success: false }), {
-          status: 500,
-          statusText: 'Internal Server Error',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-      }
-
-      const delay = baseDelay * Math.pow(2, retryCount) + Math.random() * 1000;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      retryCount++;
-    }
-  }
-
-  return new Response(JSON.stringify({ error: 'Max retries exceeded', success: false }), {
-    status: 500,
-    statusText: 'Internal Server Error',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-}
-
-export function isLikelyLoggedOut(response: Response): boolean {
-  return response.status === 401 && !response.url.includes('/api/auth/');
-}
-
-export async function handleApiResponse<T = any>(response: Response): Promise<T> {
-  try {
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
-        success: false,
-      } as T;
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      return await response.json();
-    }
-
-    return (await response.text()) as any;
-  } catch {
-    return { error: 'Response parsing failed', success: false } as T;
-  }
-}
-// lib/utils/fetchWithTimeout.ts
-
-const DEFAULT_TIMEOUT = 8000;
-
-export async function fetchWithTimeout(
-  url: string,
-  options: RequestInit = {},
-  timeout: number = DEFAULT_TIMEOUT
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
+        ...headers,
+        ...init?.headers,
       },
     });
 
-    clearTimeout(timer);
     return response;
-  } catch (error: any) {
-    clearTimeout(timer);
-
-    if (error?.name === "AbortError") {
-      throw new Error(`Request timeout after ${timeout}ms → ${url}`);
-    }
-
+  } catch (fetchError) {
+    const error = new Error(
+      `Network request failed: ${(fetchError as Error).message}`,
+    ) as NetworkError;
+    error.name = "NetworkError";
+    error.cause = fetchError as Error;
     throw error;
   }
+}
+
+// Parse JSON response and throw typed errors for HTTP failures
+export async function handleApiResponse<T = any>(
+  response: Response,
+): Promise<T> {
+  let data: any;
+
+  try {
+    const text = await response.text();
+    data = text ? JSON.parse(text) : null;
+  } catch (parseError) {
+    const error = new Error(
+      `Response parsing failed: ${response.statusText}`,
+    ) as ParseError;
+    error.status = response.status;
+    error.body = null;
+    error.originalError = parseError as Error;
+    error.name = "ParseError";
+    throw error;
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      data?.error?.message ||
+      data?.message ||
+      `HTTP ${response.status}: ${response.statusText}`;
+
+    const error = new Error(errorMessage) as ApiError;
+    error.status = response.status;
+    error.body = data;
+    error.code = data?.error?.code || `HTTP_${response.status}`;
+    error.name = "ApiError";
+    throw error;
+  }
+
+  return data;
+}
+
+// Create strongly typed timeout error with elapsed time
+export function createTimeoutError(timeout: number): TimeoutError {
+  const error = new Error(`Request timeout after ${timeout}ms`) as TimeoutError;
+  error.name = "TimeoutError";
+  error.timeout = timeout;
+  return error;
 }
