@@ -13,11 +13,7 @@ import {
   ProductValidationError,
   CouponValidationError,
 } from "./OrderErrors";
-import { RepositoryError } from "../shared/InfrastructureError";
-import {
-  calculateOrderPricing,
-  buildOrderData,
-} from "@/lib/order/orderBusinessLogic";
+import { calculateOrderPricing } from "@/lib/order/orderBusinessLogic";
 import {
   getCached,
   setCache,
@@ -27,7 +23,7 @@ import {
 } from "@/lib/cache";
 
 export class OrderService {
-  constructor(private repository: IOrderRepository = new OrderRepository()) { }
+  constructor(private repository: IOrderRepository = new OrderRepository()) {}
 
   // Get orders for user with pagination and caching
   async getOrders(
@@ -65,31 +61,17 @@ export class OrderService {
       return cached;
     }
 
-    try {
-      const order = await this.repository.findById(orderId, userId);
+    const order = await this.repository.findById(orderId, userId);
 
-      // Get payment information
-      const payment = await this.repository.findPaymentByOrderId(orderId);
+    // Get payment information
+    const payment = await this.repository.findPaymentByOrderId(orderId);
 
-      const result = {
-        order: this.formatCompleteOrderResponse(order, payment),
-      };
+    const result = {
+      order: this.formatCompleteOrderResponse(order, payment),
+    };
 
-      await setCache(cacheKey, result, CACHE_TTL.ORDERS || 300);
-      return result;
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof OrderNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve order");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    await setCache(cacheKey, result, CACHE_TTL.ORDERS || 300);
+    return result;
   }
 
   // Get single order by order number with caching
@@ -101,34 +83,20 @@ export class OrderService {
       return cached;
     }
 
-    try {
-      const order = await this.repository.findByOrderNumber(
-        orderNumber,
-        userId,
-      );
+    const order = await this.repository.findByOrderNumber(
+      orderNumber,
+      userId,
+    );
 
-      // Get payment information
-      const payment = await this.repository.findPaymentByOrderId(order._id);
+    // Get payment information
+    const payment = await this.repository.findPaymentByOrderId(order._id);
 
-      const result = {
-        order: this.formatCompleteOrderResponse(order, payment),
-      };
+    const result = {
+      order: this.formatCompleteOrderResponse(order, payment),
+    };
 
-      await setCache(cacheKey, result, CACHE_TTL.ORDERS || 300);
-      return result;
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof OrderNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve order");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    await setCache(cacheKey, result, CACHE_TTL.ORDERS || 300);
+    return result;
   }
 
   // Create new order
@@ -209,154 +177,118 @@ export class OrderService {
 
   // Update order
   async updateOrder(userId: string, orderId: string, data: UpdateOrderRequest) {
-    try {
-      const order = await this.repository.findById(orderId, userId);
+    const order = await this.repository.findById(orderId, userId);
 
-      let updatedOrder;
+    let updatedOrder;
 
-      if (data.action === "cancel") {
-        // Check if order can be cancelled
-        if (!["pending", "confirmed"].includes(order.orderStatus)) {
-          throw new OrderCannotBeCancelledError(order.orderStatus);
-        }
+    if (data.action === "cancel") {
+      // Check if order can be cancelled
+      if (!["pending", "confirmed"].includes(order.orderStatus)) {
+        throw new OrderCannotBeCancelledError(order.orderStatus);
+      }
 
-        if (order.orderStatus === "cancelled") {
-          throw new OrderAlreadyCancelledError();
-        }
+      if (order.orderStatus === "cancelled") {
+        throw new OrderAlreadyCancelledError();
+      }
 
-        updatedOrder = await this.repository.cancelOrder(
-          orderId,
-          userId,
-          data.reason,
-        );
+      updatedOrder = await this.repository.cancelOrder(
+        orderId,
+        userId,
+        data.reason,
+      );
 
-        // Update payment record
-        if (order.paymentStatus === "paid") {
-          await this.repository.updatePayment(orderId, {
-            status: "refunded",
-          });
-        }
-      } else if (data.action === "update_status" && data.status) {
-        const validStatuses = [
-          "pending",
-          "confirmed",
-          "processing",
-          "shipped",
-          "delivered",
-          "cancelled",
-        ];
+      // Update payment record
+      if (order.paymentStatus === "paid") {
+        await this.repository.updatePayment(orderId, {
+          status: "refunded",
+        });
+      }
+    } else if (data.action === "update_status" && data.status) {
+      const validStatuses = [
+        "pending",
+        "confirmed",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+      ];
 
-        if (!validStatuses.includes(data.status)) {
-          throw new InvalidOrderStatusError(data.status);
-        }
+      if (!validStatuses.includes(data.status)) {
+        throw new InvalidOrderStatusError(data.status);
+      }
 
-        updatedOrder = await this.repository.updateOrderStatus(
-          orderId,
-          userId,
-          data.status,
-        );
+      updatedOrder = await this.repository.updateOrderStatus(
+        orderId,
+        userId,
+        data.status,
+      );
 
-        // Update payment for COD deliveries
-        if (data.status === "delivered" && order.paymentMethod === "cod") {
-          await this.repository.updatePayment(orderId, {
-            status: "paid",
-            paidAt: new Date(),
-          });
-        }
+      // Update payment for COD deliveries
+      if (data.status === "delivered" && order.paymentMethod === "cod") {
+        await this.repository.updatePayment(orderId, {
+          status: "paid",
+          paidAt: new Date(),
+        });
+      }
+    } else {
+      // Regular update (notes, etc.)
+      const updates: any = {};
+      if (data.notes !== undefined) {
+        updates.notes = data.notes;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updatedOrder = await this.repository.update(orderId, userId, updates);
       } else {
-        // Regular update (notes, etc.)
-        const updates: any = {};
-        if (data.notes !== undefined) {
-          updates.notes = data.notes;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          updatedOrder = await this.repository.update(orderId, userId, updates);
-        } else {
-          updatedOrder = order;
-        }
+        updatedOrder = order;
       }
-
-      // Invalidate cache
-      await this.invalidateOrderCaches(userId, orderId, order.orderNumber);
-
-      const payment = await this.repository.findPaymentByOrderId(orderId);
-
-      return {
-        success: true,
-        message:
-          data.action === "cancel"
-            ? "Order cancelled successfully"
-            : "Order updated successfully",
-        order: this.formatCompleteOrderResponse(updatedOrder, payment),
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (
-        error instanceof OrderNotFoundError ||
-        error instanceof OrderCannotBeCancelledError ||
-        error instanceof OrderAlreadyCancelledError ||
-        error instanceof InvalidOrderStatusError
-      ) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to update order");
-      }
-
-      throw error; // Re-throw unknown errors
     }
+
+    // Invalidate cache
+    await this.invalidateOrderCaches(userId, orderId, order.orderNumber);
+
+    const payment = await this.repository.findPaymentByOrderId(orderId);
+
+    return {
+      success: true,
+      message:
+        data.action === "cancel"
+          ? "Order cancelled successfully"
+          : "Order updated successfully",
+      order: this.formatCompleteOrderResponse(updatedOrder, payment),
+    };
   }
 
   // Delete order
   async deleteOrder(userId: string, orderId: string) {
-    try {
-      const order = await this.repository.findById(orderId, userId);
+    const order = await this.repository.findById(orderId, userId);
 
-      if (!["cancelled", "returned"].includes(order.orderStatus)) {
-        throw new OrderCannotBeDeletedError(order.orderStatus);
-      }
-
-      const deleted = await this.repository.delete(orderId, userId);
-
-      if (!deleted) {
-        throw new OrderNotFoundError(orderId);
-      }
-
-      // Delete associated payments
-      await this.repository.updatePayment(orderId, { deleted: true });
-
-      // Invalidate cache
-      await this.invalidateOrderCaches(userId, orderId, order.orderNumber);
-
-      return {
-        success: true,
-        message: "Order deleted successfully",
-        deletedOrder: {
-          orderNumber: order.orderNumber,
-          totalAmount: order.totalAmount,
-          orderStatus: order.orderStatus,
-          deletedAt: new Date().toISOString(),
-        },
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (
-        error instanceof OrderNotFoundError ||
-        error instanceof OrderCannotBeDeletedError
-      ) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to delete order");
-      }
-
-      throw error; // Re-throw unknown errors
+    if (!["cancelled", "returned"].includes(order.orderStatus)) {
+      throw new OrderCannotBeDeletedError(order.orderStatus);
     }
+
+    const deleted = await this.repository.delete(orderId, userId);
+
+    if (!deleted) {
+      throw new OrderNotFoundError(orderId);
+    }
+
+    // Delete associated payments
+    await this.repository.updatePayment(orderId, { deleted: true });
+
+    // Invalidate cache
+    await this.invalidateOrderCaches(userId, orderId, order.orderNumber);
+
+    return {
+      success: true,
+      message: "Order deleted successfully",
+      deletedOrder: {
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        orderStatus: order.orderStatus,
+        deletedAt: new Date().toISOString(),
+      },
+    };
   }
 
   // Private helper methods
@@ -401,24 +333,24 @@ export class OrderService {
             ((item.originalPrice || item.price) - item.price) * item.quantity,
           product: item.productId
             ? {
-              _id: item.productId._id,
-              name: item.productId.name,
-              mainImage: item.productId.mainImage,
-              slug: item.productId.slug,
-            }
+                _id: item.productId._id,
+                name: item.productId.name,
+                mainImage: item.productId.mainImage,
+                slug: item.productId.slug,
+              }
             : null,
         })) || [],
       payment: payment
         ? {
-          _id: payment._id,
-          paymentId: payment.paymentId,
-          status: payment.status,
-          method: payment.method,
-          gateway: payment.gateway,
-          gatewayTransactionId: payment.gatewayTransactionId,
-          paidAt: payment.paidAt,
-          failureReason: payment.failureReason,
-        }
+            _id: payment._id,
+            paymentId: payment.paymentId,
+            status: payment.status,
+            method: payment.method,
+            gateway: payment.gateway,
+            gatewayTransactionId: payment.gatewayTransactionId,
+            paidAt: payment.paidAt,
+            failureReason: payment.failureReason,
+          }
         : null,
       orderSummary: {
         totalItems: order.items?.length || 0,
@@ -435,11 +367,11 @@ export class OrderService {
           order.orderStatus === "delivered" &&
           order.deliveredAt &&
           new Date().getTime() - new Date(order.deliveredAt).getTime() <=
-          30 * 24 * 60 * 60 * 1000,
+            30 * 24 * 60 * 60 * 1000,
         estimatedDelivery: order.expectedDeliveryDate,
         orderAge: Math.floor(
           (new Date().getTime() - new Date(order.createdAt).getTime()) /
-          (24 * 60 * 60 * 1000),
+            (24 * 60 * 60 * 1000),
         ),
       },
     };
@@ -469,10 +401,8 @@ export class OrderService {
       );
     }
 
-    await Promise.all(cachePromises).catch((err) => {
-      // Cache invalidation failed - log in development only
-      if (process.env.NODE_ENV === "development") {
-      }
+    await Promise.all(cachePromises).catch(() => {
+      // Silently fail cache invalidation
     });
   }
 }

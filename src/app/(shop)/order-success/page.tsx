@@ -43,7 +43,7 @@ export default function OrderSuccessPage() {
     order?.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment";
   const paymentStatus =
     order?.paymentStatus === "paid"
-      ? "Confirmed"
+      ? "Paid"
       : order?.paymentStatus === "pending"
         ? "Pending"
         : "COD";

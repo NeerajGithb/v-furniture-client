@@ -7,17 +7,13 @@ import {
 import { ProductsRepository } from "./ProductsRepository";
 import { ProductsQueryRequest, ProductsFilterRequest } from "./ProductsSchemas";
 import {
-  ProductNotFoundError,
   CategoryNotFoundError,
-  SubcategoryNotFoundError,
   InvalidPriceRangeError,
 } from "./ProductsErrors";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { Product } from "@/types/Product";
 import {
   getCached,
   setCache,
-  invalidateCacheByPrefix,
   CACHE_TTL,
 } from "@/lib/cache";
 
@@ -28,64 +24,36 @@ export class ProductsService {
 
   // Get products with various query modes
   async getProducts(query: ProductsQueryRequest): Promise<any> {
-    try {
-      // Validate price range
-      if (
-        query.minPrice !== undefined &&
-        query.maxPrice !== undefined &&
-        query.minPrice > query.maxPrice
-      ) {
-        throw new InvalidPriceRangeError();
-      }
-
-      // Handle different query modes
-      if (query.count) {
-        return this.getProductsCount(query);
-      }
-
-      if (query.showcase) {
-        return this.getShowcaseProducts(query);
-      }
-
-      if (query.groupBy === "category") {
-        return this.getProductsByCategory(query);
-      }
-
-      // Default: paginated products list
-      return this.getProductsList(query);
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (
-        error instanceof InvalidPriceRangeError ||
-        error instanceof CategoryNotFoundError ||
-        error instanceof SubcategoryNotFoundError
-      ) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve products");
-      }
-
-      throw error; // Re-throw unknown errors
+    // Validate price range
+    if (
+      query.minPrice !== undefined &&
+      query.maxPrice !== undefined &&
+      query.minPrice > query.maxPrice
+    ) {
+      throw new InvalidPriceRangeError();
     }
+
+    // Handle different query modes
+    if (query.count) {
+      return this.getProductsCount(query);
+    }
+
+    if (query.showcase) {
+      return this.getShowcaseProducts(query);
+    }
+
+    if (query.groupBy === "category") {
+      return this.getProductsByCategory(query);
+    }
+
+    // Default: paginated products list
+    return this.getProductsList(query);
   }
 
   // Get single product by ID
   async getProductById(id: string): Promise<Product> {
     const cacheKey = `product:${id}`;
-    
-    // Try to get from cache, but don't let cache errors break the request
-    let cached: Product | null = null;
-    try {
-      cached = await getCached<Product>(cacheKey);
-    } catch (cacheError) {
-      // Log cache error but continue with database lookup
-      if (process.env.NODE_ENV === "development") {
-        console.warn("Cache read error:", cacheError);
-      }
-    }
+    const cached = await getCached<Product>(cacheKey);
 
     if (cached) {
       // Increment view count asynchronously
@@ -93,52 +61,19 @@ export class ProductsService {
       return cached;
     }
 
-    try {
-      const product = await this.repository.findById(id);
+    const product = await this.repository.findById(id);
+    await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
 
-      // Try to cache the product, but don't let cache errors break the response
-      try {
-        await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
-      } catch (cacheError) {
-        // Log cache error but continue with response
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Cache write error:", cacheError);
-        }
-      }
+    // Increment view count asynchronously
+    this.repository.incrementViewCount(id);
 
-      // Increment view count asynchronously
-      this.repository.incrementViewCount(id);
-
-      return product;
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof ProductNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve product");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    return product;
   }
 
   // Get single product by slug
   async getProductBySlug(slug: string): Promise<Product> {
     const cacheKey = `product:slug:${slug}`;
-    
-    // Try to get from cache, but don't let cache errors break the request
-    let cached: Product | null = null;
-    try {
-      cached = await getCached<Product>(cacheKey);
-    } catch (cacheError) {
-      // Log cache error but continue with database lookup
-      if (process.env.NODE_ENV === "development") {
-        console.warn("Cache read error:", cacheError);
-      }
-    }
+    const cached = await getCached<Product>(cacheKey);
 
     if (cached) {
       // Increment view count asynchronously
@@ -146,36 +81,13 @@ export class ProductsService {
       return cached;
     }
 
-    try {
-      const product = await this.repository.findBySlug(slug);
+    const product = await this.repository.findBySlug(slug);
+    await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
 
-      // Try to cache the product, but don't let cache errors break the response
-      try {
-        await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
-      } catch (cacheError) {
-        // Log cache error but continue with response
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Cache write error:", cacheError);
-        }
-      }
+    // Increment view count asynchronously
+    this.repository.incrementViewCount(product._id);
 
-      // Increment view count asynchronously
-      this.repository.incrementViewCount(product._id);
-
-      return product;
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof ProductNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve product");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    return product;
   }
 
   // Private methods for different query modes

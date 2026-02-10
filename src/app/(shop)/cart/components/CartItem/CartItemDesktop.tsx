@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Info,
 } from "lucide-react";
+import React from "react";
+import slugify from "slugify";
 import { calculateInsuranceCost } from "../../utils/cartHelpers";
 
 interface Props {
@@ -40,25 +42,60 @@ export const CartItemDesktop = ({
   onToggleInsurance,
 }: Props) => {
   const insuranceCost = calculateInsuranceCost(item.itemTotal);
+  const [showOutOfStockMsg, setShowOutOfStockMsg] = React.useState(false);
+
+  const handleSelectionClick = (e: React.MouseEvent) => {
+    if (!item.product?.isInStock) {
+      e.preventDefault();
+      setShowOutOfStockMsg(true);
+      setTimeout(() => setShowOutOfStockMsg(false), 2000);
+      return;
+    }
+    onToggleSelection();
+  };
+
+  const cleanName = item.product?.name?.replace(/\s*\(Copy\)\s*/g, "").trim() || "Product";
+  const productUrl = `/products/${slugify(cleanName, {
+    lower: true,
+    strict: true,
+  })}-${item.product?._id}`;
 
   return (
     <div className="hidden sm:block">
-      <div className="flex gap-3">
-        <div className="flex flex-col items-center gap-2 pt-1">
-          <button
-            onClick={onToggleSelection}
-            disabled={isUpdating}
-            className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center transition-all duration-200 disabled:opacity-50 ${
-              isSelected
-                ? "bg-blue-600 border-blue-600 text-white"
-                : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
-            }`}
+      <div className="flex gap-3 relative">
+        <div className="flex flex-col items-center gap-2 pt-1 relative">
+          <div
+            onClick={handleSelectionClick}
+            className="cursor-pointer"
           >
-            {isSelected && <Check className="w-3 h-3" />}
-          </button>
+            <button
+              disabled={isUpdating}
+              className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${
+                !item.product?.isInStock 
+                  ? "border-gray-200 bg-gray-100 opacity-50"
+                  : isSelected
+                  ? "bg-blue-600 border-blue-600 text-white"
+                  : "border-gray-300"
+              }`}
+            >
+              {isSelected && <Check className="w-3 h-3" />}
+            </button>
+          </div>
+          
+          {showOutOfStockMsg && (
+            <div className="absolute left-6 top-0 z-10 bg-red-600 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-left-2 duration-200">
+              Out of stock
+              <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-r-4 border-r-red-600"></div>
+            </div>
+          )}
         </div>
 
-        <div className="w-16 h-16 bg-gray-100 rounded-xs overflow-hidden shrink-0">
+        <a 
+          href={productUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-16 h-16 bg-gray-100 rounded-xs overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+        >
           {item.product?.mainImage?.url ? (
             <img
               src={item.product.mainImage.url}
@@ -70,14 +107,19 @@ export const CartItemDesktop = ({
               <Package className="w-6 h-6 text-gray-400" />
             </div>
           )}
-        </div>
+        </a>
 
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 text-base truncate">
+              <a 
+                href={productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-gray-900 dark:text-gray-100 mb-1 text-base truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors block"
+              >
                 {item.product?.name || "Product"}
-              </h3>
+              </a>
               {item.selectedVariant && (
                 <div className="flex gap-1 text-xs text-gray-600 dark:text-gray-400 mb-1">
                   {item.selectedVariant.color && (

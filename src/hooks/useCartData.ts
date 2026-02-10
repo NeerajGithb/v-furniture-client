@@ -32,10 +32,13 @@ export const useCart = (enabled: boolean = true) => {
       );
       setCartProductIds(cartIds);
 
-      // Set selected items for checkout
-      const allItemIds = query.data.items.map((item) => item.productId);
-      if (allItemIds.length > 0) {
-        setSelectedItems(allItemIds);
+      // Set selected items for checkout - only in-stock items
+      const inStockItemIds = query.data.items
+        .filter((item) => item.product?.isInStock)
+        .map((item) => item.productId);
+      
+      if (inStockItemIds.length > 0) {
+        setSelectedItems(inStockItemIds);
         calculateCheckoutTotals(query.data.items);
       }
     }

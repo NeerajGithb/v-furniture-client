@@ -5,8 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useProductStore } from "@/stores/productStore";
 import { useProduct, useRelatedProducts } from "@/hooks/useProductData";
 import { useReviews } from "@/hooks/useReviewData";
-import { useCart } from "@/hooks/useCartData";
-import { useWishlist } from "@/hooks/useWishlistData";
 import { useProductActions } from "./hooks/useProductActions";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import ProductMainSection from "./components/ProductMainSection";
@@ -45,10 +43,6 @@ export default function SingleProductPage() {
     isLoading: reviewsLoading,
     error: reviewsError,
   } = useReviews(productId || "", "all");
-
-  // User-related data - only fetch when user is ready
-  const { data: cart } = useCart(isUserReady);
-  const { data: wishlist } = useWishlist(isUserReady);
 
   // User-related actions - only initialize when user is ready
   const actions = useProductActions(

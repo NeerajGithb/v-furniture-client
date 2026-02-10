@@ -7,7 +7,6 @@ import {
   BusinessData,
   AIResponse,
 } from "./IChatRepository";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { BusinessLogicRequest } from "./ChatSchemas";
 import { normalizeMessage } from "@/lib/ai/normalizeMessage";
 import { understandMessage } from "@/lib/ai/understandMessage";
@@ -20,134 +19,84 @@ import { resolveSelectionFromState } from "@/lib/ai/utils/resolveSelectionFromSt
 import { getNavigationMeaning } from "@/lib/ai/navigation/actionMeaning";
 
 export class ChatRepository implements IChatRepository {
-  // Normalize message
   async normalizeMessage(message: string): Promise<NormalizeResult> {
-    try {
-      const result = await normalizeMessage(message);
-      return {
-        normalized: result.normalized,
-        language: result.language,
-      };
-    } catch (error) {
-      throw new RepositoryError("Failed to normalize message", error as Error);
-    }
+    const result = await normalizeMessage(message);
+    return {
+      normalized: result.normalized,
+      language: result.language,
+    };
   }
 
-  // Understand message intent
   async understandMessage(
     message: string,
     history: any[],
     currentProduct?: any,
   ): Promise<ChatUnderstanding> {
-    try {
-      const understanding = await understandMessage(
-        message,
-        history,
-        currentProduct,
-      );
-      return understanding;
-    } catch (error) {
-      throw new RepositoryError("Failed to understand message", error as Error);
-    }
+    return understandMessage(message, history, currentProduct);
   }
 
-  // Make decision based on understanding
   async makeDecision(
     state: ConversationState | null,
     understanding: ChatUnderstanding,
     currentProduct?: any,
     conversationId?: string,
   ): Promise<ChatDecision> {
-    try {
-      const decision: DecisionResult = await makeDecision(
-        state,
-        understanding,
-        currentProduct,
-        conversationId || "",
-      );
+    const decision: DecisionResult = await makeDecision(
+      state,
+      understanding,
+      currentProduct,
+      conversationId || "",
+    );
 
-      // Map DecisionResult to ChatDecision
-      return {
-        action: decision.action,
-        actionType: decision.actionType,
-        shouldFetchProducts: decision.shouldFetchProducts,
-        shouldRenderProducts: decision.shouldRenderProducts,
-        shouldNavigate: decision.shouldNavigate,
-        shouldFetchStats: decision.shouldFetchStats,
-        category: decision.category,
-        subcategory: decision.subcategory,
-        productSlug: decision.productSlug,
-        productId: decision.productId,
-        index: decision.index,
-        filters: decision.filters,
-        pendingBrowse: decision.pendingBrowse,
-        currentProductData: decision.currentProductData,
-        detailLevel: decision.detailLevel,
-      };
-    } catch (error) {
-      throw new RepositoryError("Failed to make decision", error as Error);
-    }
+    return {
+      action: decision.action,
+      actionType: decision.actionType,
+      shouldFetchProducts: decision.shouldFetchProducts,
+      shouldRenderProducts: decision.shouldRenderProducts,
+      shouldNavigate: decision.shouldNavigate,
+      shouldFetchStats: decision.shouldFetchStats,
+      category: decision.category,
+      subcategory: decision.subcategory,
+      productSlug: decision.productSlug,
+      productId: decision.productId,
+      index: decision.index,
+      filters: decision.filters,
+      pendingBrowse: decision.pendingBrowse,
+      currentProductData: decision.currentProductData,
+      detailLevel: decision.detailLevel,
+    };
   }
 
-  // Get conversation state
-  async getConversationState(
-    conversationId: string,
-  ): Promise<ConversationState | null> {
-    try {
-      const state = await getConversationState(conversationId);
-      return state;
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to get conversation state",
-        error as Error,
-      );
-    }
+  async getConversationState(conversationId: string): Promise<ConversationState | null> {
+    return getConversationState(conversationId);
   }
 
-  // Save conversation state
   async saveConversationState(
     conversationId: string,
     state: Partial<ConversationState>,
   ): Promise<void> {
-    try {
-      await saveConversationState(conversationId, state);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to save conversation state",
-        error as Error,
-      );
-    }
+    await saveConversationState(conversationId, state);
   }
 
-  // Execute business logic
   async executeBusinessLogic(
     conversationId: string,
     request: BusinessLogicRequest,
   ): Promise<BusinessData | null> {
-    try {
-      const businessData = await executeBusinessLogic(conversationId, {
-        action: request.action,
-        actionType: request.actionType,
-        category: request.category || null,
-        subcategory: request.subcategory || null,
-        filters: request.filters,
-        infoEntity: request.infoEntity,
-        productId: request.productId,
-        productSlug: request.productSlug,
-        userId: request.userId,
-      });
+    const businessData = await executeBusinessLogic(conversationId, {
+      action: request.action,
+      actionType: request.actionType,
+      category: request.category || null,
+      subcategory: request.subcategory || null,
+      filters: request.filters,
+      infoEntity: request.infoEntity,
+      productId: request.productId,
+      productSlug: request.productSlug,
+      userId: request.userId,
+    });
 
-      // Return the business logic result as-is since it already matches our expected structure
-      return businessData as BusinessData;
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to execute business logic",
-        error as Error,
-      );
-    }
+    return businessData as BusinessData;
   }
 
-  // Generate AI response
   async generateResponse(
     message: string,
     understanding: ChatUnderstanding,
@@ -156,116 +105,87 @@ export class ChatRepository implements IChatRepository {
     activeProduct?: any,
     action?: string,
   ): Promise<AIResponse> {
-    try {
-      const { finalResponse, structuredData } = await respondMessage(
-        message,
-        understanding,
-        businessData,
-        history,
-        activeProduct,
-        action,
-      );
+    const { finalResponse, structuredData } = await respondMessage(
+      message,
+      understanding,
+      businessData,
+      history,
+      activeProduct,
+      action,
+    );
 
-      return {
-        finalResponse,
-        structuredData,
-      };
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to generate AI response",
-        error as Error,
-      );
-    }
+    return { finalResponse, structuredData };
   }
 
-  // Resolve selection from state
   async resolveSelectionFromState(
     conversationId: string,
     message: string,
     decision: ChatDecision,
     understanding: ChatUnderstanding,
   ): Promise<ChatDecision> {
-    try {
-      // Convert ChatDecision back to DecisionResult for the AI service
-      const decisionResult: DecisionResult = {
-        action: decision.action,
-        actionType: decision.actionType,
-        shouldFetchProducts: decision.shouldFetchProducts,
-        shouldRenderProducts: decision.shouldRenderProducts,
-        shouldNavigate: decision.shouldNavigate,
-        shouldFetchStats: decision.shouldFetchStats,
-        category: decision.category,
-        subcategory: decision.subcategory,
-        productSlug: decision.productSlug,
-        productId: decision.productId,
-        index: decision.index,
-        filters: decision.filters,
-        pendingBrowse: decision.pendingBrowse,
-        currentProductData: decision.currentProductData,
-        detailLevel: decision.detailLevel,
-      };
+    const decisionResult: DecisionResult = {
+      action: decision.action,
+      actionType: decision.actionType,
+      shouldFetchProducts: decision.shouldFetchProducts,
+      shouldRenderProducts: decision.shouldRenderProducts,
+      shouldNavigate: decision.shouldNavigate,
+      shouldFetchStats: decision.shouldFetchStats,
+      category: decision.category,
+      subcategory: decision.subcategory,
+      productSlug: decision.productSlug,
+      productId: decision.productId,
+      index: decision.index,
+      filters: decision.filters,
+      pendingBrowse: decision.pendingBrowse,
+      currentProductData: decision.currentProductData,
+      detailLevel: decision.detailLevel,
+    };
 
-      const resolvedDecision = await resolveSelectionFromState(
-        conversationId,
-        message,
-        decisionResult,
-        understanding,
-      );
+    const resolvedDecision = await resolveSelectionFromState(
+      conversationId,
+      message,
+      decisionResult,
+      understanding,
+    );
 
-      // Map back to ChatDecision
-      return {
-        action: resolvedDecision.action,
-        actionType: resolvedDecision.actionType,
-        shouldFetchProducts: resolvedDecision.shouldFetchProducts,
-        shouldRenderProducts: resolvedDecision.shouldRenderProducts,
-        shouldNavigate: resolvedDecision.shouldNavigate,
-        shouldFetchStats: resolvedDecision.shouldFetchStats,
-        category: resolvedDecision.category,
-        subcategory: resolvedDecision.subcategory,
-        productSlug: resolvedDecision.productSlug,
-        productId: resolvedDecision.productId,
-        index: resolvedDecision.index,
-        filters: resolvedDecision.filters,
-        pendingBrowse: resolvedDecision.pendingBrowse,
-        currentProductData: resolvedDecision.currentProductData,
-        detailLevel: resolvedDecision.detailLevel,
-      };
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to resolve selection from state",
-        error as Error,
-      );
-    }
+    return {
+      action: resolvedDecision.action,
+      actionType: resolvedDecision.actionType,
+      shouldFetchProducts: resolvedDecision.shouldFetchProducts,
+      shouldRenderProducts: resolvedDecision.shouldRenderProducts,
+      shouldNavigate: resolvedDecision.shouldNavigate,
+      shouldFetchStats: resolvedDecision.shouldFetchStats,
+      category: resolvedDecision.category,
+      subcategory: resolvedDecision.subcategory,
+      productSlug: resolvedDecision.productSlug,
+      productId: resolvedDecision.productId,
+      index: resolvedDecision.index,
+      filters: resolvedDecision.filters,
+      pendingBrowse: resolvedDecision.pendingBrowse,
+      currentProductData: resolvedDecision.currentProductData,
+      detailLevel: resolvedDecision.detailLevel,
+    };
   }
 
-  // Get navigation meaning
   getNavigationMeaning(decision: ChatDecision, state: ConversationState): any {
-    try {
-      // Convert ChatDecision to DecisionResult for the AI service
-      const decisionResult: DecisionResult = {
-        action: decision.action,
-        actionType: decision.actionType,
-        shouldFetchProducts: decision.shouldFetchProducts,
-        shouldRenderProducts: decision.shouldRenderProducts,
-        shouldNavigate: decision.shouldNavigate,
-        shouldFetchStats: decision.shouldFetchStats,
-        category: decision.category,
-        subcategory: decision.subcategory,
-        productSlug: decision.productSlug,
-        productId: decision.productId,
-        index: decision.index,
-        filters: decision.filters,
-        pendingBrowse: decision.pendingBrowse,
-        currentProductData: decision.currentProductData,
-        detailLevel: decision.detailLevel,
-      };
+    const decisionResult: DecisionResult = {
+      action: decision.action,
+      actionType: decision.actionType,
+      shouldFetchProducts: decision.shouldFetchProducts,
+      shouldRenderProducts: decision.shouldRenderProducts,
+      shouldNavigate: decision.shouldNavigate,
+      shouldFetchStats: decision.shouldFetchStats,
+      category: decision.category,
+      subcategory: decision.subcategory,
+      productSlug: decision.productSlug,
+      productId: decision.productId,
+      index: decision.index,
+      filters: decision.filters,
+      pendingBrowse: decision.pendingBrowse,
+      currentProductData: decision.currentProductData,
+      detailLevel: decision.detailLevel,
+    };
 
-      return getNavigationMeaning(decisionResult, state);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to get navigation meaning",
-        error as Error,
-      );
-    }
+    return getNavigationMeaning(decisionResult, state);
   }
 }

@@ -55,62 +55,37 @@ export async function fetchWithCredentials(
   input: RequestInfo,
   init?: RequestInit,
 ): Promise<Response> {
-  try {
-    const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {};
 
-    if (!(init?.body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
-
-    const response = await fetch(input, {
-      ...init,
-      credentials: "include",
-      headers: {
-        ...headers,
-        ...init?.headers,
-      },
-    });
-
-    return response;
-  } catch (fetchError) {
-    const error = new Error(
-      `Network request failed: ${(fetchError as Error).message}`,
-    ) as NetworkError;
-    error.name = "NetworkError";
-    error.cause = fetchError as Error;
-    throw error;
+  if (!(init?.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
   }
+
+  const response = await fetch(input, {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...headers,
+      ...init?.headers,
+    },
+  });
+
+  return response;
 }
 
-// Parse JSON response and throw typed errors for HTTP failures
 export async function handleApiResponse<T = any>(
   response: Response,
 ): Promise<T> {
-  let data: any;
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
 
-  try {
-    const text = await response.text();
-    data = text ? JSON.parse(text) : null;
-  } catch (parseError) {
-    const error = new Error(
-      `Response parsing failed: ${response.statusText}`,
-    ) as ParseError;
-    error.status = response.status;
-    error.body = null;
-    error.originalError = parseError as Error;
-    error.name = "ParseError";
-    throw error;
-  }
-
+  // If response is not OK (4xx, 5xx), throw ApiError with exact backend response
   if (!response.ok) {
-    const errorMessage =
-      data?.error?.message ||
-      data?.message ||
-      `HTTP ${response.status}: ${response.statusText}`;
-
-    const error = new Error(errorMessage) as ApiError;
+    const error = new Error(
+      data?.error?.message || data?.message || `HTTP ${response.status}: ${response.statusText}`
+    ) as ApiError;
     error.status = response.status;
-    error.body = data;
+    error.body = data; // Preserve EXACT backend response
     error.code = data?.error?.code || `HTTP_${response.status}`;
     error.name = "ApiError";
     throw error;

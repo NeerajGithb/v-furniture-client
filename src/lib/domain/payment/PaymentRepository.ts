@@ -6,11 +6,9 @@ import {
   RazorpayOrderResult,
   PaymentVerificationResult,
 } from "./IPaymentRepository";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { PaymentNotFoundError } from "./PaymentErrors";
 import { validateRequiredFields } from "../shared/mapperUtils";
 import PaymentModel from "@/models/Payment";
-import { connectDB } from "@/lib/dbConnect";
 import { withTransaction } from "@/lib/utils/transaction";
 import {
   validateOrderForPayment,
@@ -26,101 +24,60 @@ import { invalidateCacheByPrefix, deleteCache } from "@/lib/cache";
 export class PaymentRepository implements IPaymentRepository {
   // Find payment by ID
   async findById(paymentId: string, userId: string): Promise<any> {
-    try {
-      
+    const payment = await PaymentModel.findOne({ paymentId, userId })
+      .populate(
+        "orderId",
+        "_id orderNumber totalAmount orderStatus paymentStatus",
+      );
 
-      const payment = await PaymentModel.findOne({ paymentId, userId })
-        .populate(
-          "orderId",
-          "_id orderNumber totalAmount orderStatus paymentStatus",
-        )
-        .lean();
+    if (!payment) {
+      throw new PaymentNotFoundError(paymentId);
+    }
+
+    return payment;
+  }
+
+  // Find payment by order ID
+  async findByOrderId(orderId: string, userId: string): Promise<any> {
+    const payment = await PaymentModel.findOne({ orderId, userId })
+      .populate(
+        "orderId",
+        "_id orderNumber totalAmount orderStatus paymentStatus",
+      );
+
+    if (!payment) {
+      throw new PaymentNotFoundError(orderId);
+    }
+
+    return payment;
+  }
+
+  // Create new payment
+  async create(paymentData: any): Promise<any> {
+    return await withTransaction(async (session) => {
+      const payment = await PaymentModel.create([paymentData], { session });
+      return this.mapToPayment(payment[0].toObject());
+    });
+  }
+
+  // Update payment
+  async update(paymentId: string, updates: any): Promise<any> {
+    return await withTransaction(async (session) => {
+      const payment = await PaymentModel.findOneAndUpdate(
+        { paymentId },
+        { ...updates, updatedAt: new Date() },
+        { new: true, session },
+      ).populate(
+        "orderId",
+        "_id orderNumber totalAmount orderStatus paymentStatus",
+      );
 
       if (!payment) {
         throw new PaymentNotFoundError(paymentId);
       }
 
-      return this.mapToPayment(payment);
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof PaymentNotFoundError) {
-        throw error;
-      }
-      throw new RepositoryError("Failed to find payment by ID", error as Error);
-    }
-  }
-
-  // Find payment by order ID
-  async findByOrderId(orderId: string, userId: string): Promise<any> {
-    try {
-      
-
-      const payment = await PaymentModel.findOne({ orderId, userId })
-        .populate(
-          "orderId",
-          "_id orderNumber totalAmount orderStatus paymentStatus",
-        )
-        .lean();
-
-      if (!payment) {
-        throw new PaymentNotFoundError(orderId);
-      }
-
-      return this.mapToPayment(payment);
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof PaymentNotFoundError) {
-        throw error;
-      }
-      throw new RepositoryError(
-        "Failed to find payment by order ID",
-        error as Error,
-      );
-    }
-  }
-
-  // Create new payment
-  async create(paymentData: any): Promise<any> {
-    try {
-      return await withTransaction(async (session) => {
-        
-
-        const payment = await PaymentModel.create([paymentData], { session });
-        return this.mapToPayment(payment[0].toObject());
-      });
-    } catch (error) {
-      throw new RepositoryError("Failed to create payment", error as Error);
-    }
-  }
-
-  // Update payment
-  async update(paymentId: string, updates: any): Promise<any> {
-    try {
-      return await withTransaction(async (session) => {
-        
-
-        const payment = await PaymentModel.findOneAndUpdate(
-          { paymentId },
-          { ...updates, updatedAt: new Date() },
-          { new: true, session },
-        ).populate(
-          "orderId",
-          "_id orderNumber totalAmount orderStatus paymentStatus",
-        );
-
-        if (!payment) {
-          throw new PaymentNotFoundError(paymentId);
-        }
-
-        return this.mapToPayment(payment.toObject());
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof PaymentNotFoundError) {
-        throw error;
-      }
-      throw new RepositoryError("Failed to update payment", error as Error);
-    }
+      return this.mapToPayment(payment.toObject());
+    });
   }
 
   // Validate order for payment
@@ -128,26 +85,12 @@ export class PaymentRepository implements IPaymentRepository {
     orderId: string,
     userId: string,
   ): Promise<OrderValidationResult> {
-    try {
-      return await validateOrderForPayment(orderId, userId);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to validate order for payment",
-        error as Error,
-      );
-    }
+    return await validateOrderForPayment(orderId, userId);
   }
 
   // Check existing payment
   async checkExistingPayment(orderId: string): Promise<ExistingPaymentResult> {
-    try {
-      return await checkExistingPayment(orderId);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to check existing payment",
-        error as Error,
-      );
-    }
+    return await checkExistingPayment(orderId);
   }
 
   // Process COD payment
@@ -156,14 +99,7 @@ export class PaymentRepository implements IPaymentRepository {
     userId: string,
     existingPayment?: any,
   ): Promise<CODPaymentResult> {
-    try {
-      return await processCODPayment(order, userId, existingPayment);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to process COD payment",
-        error as Error,
-      );
-    }
+    return await processCODPayment(order, userId, existingPayment);
   }
 
   // Create Razorpay order
@@ -172,14 +108,7 @@ export class PaymentRepository implements IPaymentRepository {
     userId: string,
     existingPayment?: any,
   ): Promise<RazorpayOrderResult> {
-    try {
-      return await createRazorpayOrder(order, userId, existingPayment);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to create Razorpay order",
-        error as Error,
-      );
-    }
+    return await createRazorpayOrder(order, userId, existingPayment);
   }
 
   // Verify Razorpay signature
@@ -188,14 +117,7 @@ export class PaymentRepository implements IPaymentRepository {
     paymentId: string,
     signature: string,
   ): boolean {
-    try {
-      return verifyRazorpaySignature(orderId, paymentId, signature);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to verify Razorpay signature",
-        error as Error,
-      );
-    }
+    return verifyRazorpaySignature(orderId, paymentId, signature);
   }
 
   // Process successful payment
@@ -205,31 +127,17 @@ export class PaymentRepository implements IPaymentRepository {
     razorpayOrderId: string,
     razorpaySignature: string,
   ): Promise<PaymentVerificationResult> {
-    try {
-      return await processSuccessfulPayment(
-        payment,
-        razorpayPaymentId,
-        razorpayOrderId,
-        razorpaySignature,
-      );
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to process successful payment",
-        error as Error,
-      );
-    }
+    return await processSuccessfulPayment(
+      payment,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature,
+    );
   }
 
   // Process failed payment
   async processFailedPayment(payment: any, reason: string): Promise<void> {
-    try {
-      await processFailedPayment(payment, reason);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to process failed payment",
-        error as Error,
-      );
-    }
+    await processFailedPayment(payment, reason);
   }
 
   // Invalidate payment caches
@@ -242,8 +150,11 @@ export class PaymentRepository implements IPaymentRepository {
       const cachePromises = [deleteCache(`user:counts:${userId}`)];
 
       if (orderId) {
+        // Invalidate all order-related caches
         cachePromises.push(
           invalidateCacheByPrefix(`order:id:${orderId}:user:${userId}`),
+          invalidateCacheByPrefix(`order:`) // Invalidate all order caches including orderNumber
+,
           invalidateCacheByPrefix(`orders:user:${userId}`),
           invalidateCacheByPrefix(`payment:order:${orderId}:user:${userId}`),
         );
@@ -257,7 +168,7 @@ export class PaymentRepository implements IPaymentRepository {
 
       await Promise.all(cachePromises);
     } catch (error) {
-      // Don't throw error for cache invalidation failures
+      // Silently fail cache invalidation - don't block payment operations
     }
   }
 

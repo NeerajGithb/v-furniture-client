@@ -25,12 +25,12 @@ export const useProductActions = (
   const navigate = useNavigate();
 
   // Cart hooks
-  const { data: cart } = useCart();
+  const { data: cart } = useCart(!!userId);
   const addToCartMutation = useAddToCart();
   const cartHelpers = useCartHelpers(cart ?? null);
 
   // Wishlist hooks
-  const { data: wishlist } = useWishlist();
+  const { data: wishlist } = useWishlist(!!userId);
   const addToWishlistMutation = useAddToWishlist();
   const removeFromWishlistMutation = useRemoveFromWishlist();
   const wishlistHelpers = useWishlistHelpers(wishlist);
@@ -50,14 +50,11 @@ export const useProductActions = (
     try {
       const payload = {
         productId: product._id,
-        quantity: Number(quantity), // Ensure it's a number
+        quantity: Number(quantity),
       };
-      
-      console.log("Adding to cart with payload:", payload);
       
       await addToCartMutation.mutateAsync(payload);
     } catch (e: any) {
-      console.error("Add to cart error:", e);
       setError(e?.message || "Failed to add to cart");
     }
   };
@@ -149,7 +146,6 @@ export const useProductActions = (
       // Navigate to checkout
       navigate.push("/checkout");
     } catch (e: any) {
-      console.error("Buy Now error:", e);
       setError(
         e?.message || "Failed to proceed to checkout. Please try again.",
       );
@@ -168,7 +164,6 @@ export const useProductActions = (
         await addToWishlistMutation.mutateAsync(product._id);
       }
     } catch (error) {
-      console.error("Wishlist error:", error);
     }
   };
 

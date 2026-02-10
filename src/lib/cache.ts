@@ -1,60 +1,48 @@
 import { Redis } from "@upstash/redis";
 
-/**
- * Redis client (Upstash)
- */
 export const redis = new Redis({
   url: process.env.UPSTASH_REDIS_URL!,
   token: process.env.UPSTASH_REDIS_TOKEN!,
 });
 
-/**
- * Cache TTLs (seconds)
- */
+// Cache TTLs in seconds
 export const CACHE_TTL = {
-  INSPIRATIONS: 86400, // 24 hours
-  INSPIRATION: 86400, // 24 hours
-  PRODUCTS: 86400, // 24 hours
-  STATS: 3600, // 1 hour
-  SEARCH: 1800, // 30 minutes
-  SEARCH_RESULTS: 1800, // 30 minutes
-  SUGGESTIONS: 3600, // 1 hour
-  FILTERS: 7200, // 2 hours
-  PRODUCT: 86400, // 24 hours
-  RELATED_PRODUCTS: 43200, // 12 hours
-  CATEGORY: 86400, // 24 hours
-  CATEGORIES: 86400, // 24 hours
-  SUBCATEGORIES: 86400, // 24 hours
-  SHOWCASE_PRODUCTS: 21600, // 6 hours
-  REVIEWS: 43200, // 12 hours
-  WISHLIST: 600, // 10 minutes
-  CART: 300, // 5 minutes
-  ADDRESSES: 86400, // 24 hours
-  ADDRESS: 86400, // 24 hours
-  ORDERS: 1800, // 30 minutes
-  USER_COUNTS: 3600, // 1 hour
-  COUPONS: 43200, // 12 hours
+  INSPIRATIONS: 86400,
+  INSPIRATION: 86400,
+  PRODUCTS: 86400,
+  STATS: 3600,
+  SEARCH: 1800,
+  SEARCH_RESULTS: 1800,
+  SUGGESTIONS: 3600,
+  FILTERS: 7200,
+  PRODUCT: 86400,
+  RELATED_PRODUCTS: 43200,
+  CATEGORY: 86400,
+  CATEGORIES: 86400,
+  SUBCATEGORIES: 86400,
+  SHOWCASE_PRODUCTS: 21600,
+  REVIEWS: 43200,
+  WISHLIST: 600,
+  CART: 300,
+  ADDRESSES: 86400,
+  ADDRESS: 86400,
+  ORDERS: 1800,
+  USER_COUNTS: 3600,
+  COUPONS: 43200,
 } as const;
-/**
- * Get cached value
- */
+
 export async function getCached<T>(key: string): Promise<T | null> {
   try {
     const cached = await redis.get<T>(key);
-
     if (cached !== null) {
       return cached;
     }
-
     return null;
   } catch (error) {
     return null;
   }
 }
 
-/**
- * Set cache with TTL
- */
 export async function setCache<T>(
   key: string,
   value: T,
@@ -65,9 +53,7 @@ export async function setCache<T>(
   } catch (error) {}
 }
 
-/**
- * Invalidate cache by prefix using SCAN (production-safe)
- */
+// Uses SCAN for production-safe cache invalidation
 export async function invalidateCacheByPrefix(prefix: string): Promise<void> {
   try {
     let cursor = 0;
@@ -89,18 +75,12 @@ export async function invalidateCacheByPrefix(prefix: string): Promise<void> {
   } catch (error) {}
 }
 
-/**
- * Delete specific cache key
- */
 export async function deleteCache(key: string): Promise<void> {
   try {
     await redis.del(key);
   } catch (error) {}
 }
 
-/**
- * Check if key exists in cache
- */
 export async function cacheExists(key: string): Promise<boolean> {
   try {
     const exists = await redis.exists(key);
@@ -110,9 +90,6 @@ export async function cacheExists(key: string): Promise<boolean> {
   }
 }
 
-/**
- * Get remaining TTL for a key
- */
 export async function getCacheTTL(key: string): Promise<number> {
   try {
     const ttl = await redis.ttl(key);

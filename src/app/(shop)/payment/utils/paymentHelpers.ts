@@ -20,17 +20,19 @@ export const getPaymentErrorMessage = (
   const errorMessage =
     error instanceof Error ? error.message : "Payment failed";
 
+  // For Razorpay-specific user actions, provide helpful context
   if (paymentMethod === PaymentMethodEnum.RAZORPAY) {
-    if (errorMessage.includes("cancelled")) {
+    if (errorMessage.toLowerCase().includes("cancelled")) {
       return "Payment was cancelled. Your order is saved and you can retry payment from your orders page.";
     }
 
-    if (errorMessage.includes("verification failed")) {
+    if (errorMessage.toLowerCase().includes("verification failed")) {
       return "Payment verification failed. If amount was deducted, it will be refunded within 5-7 business days.";
     }
   }
 
-  return `Payment failed: ${errorMessage}`;
+  // Return the exact backend error message
+  return errorMessage;
 };
 
 /**

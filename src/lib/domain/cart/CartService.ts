@@ -34,22 +34,14 @@ export class CartService {
       return cached;
     }
 
-    try {
-      let cart = await this.repository.findByUserId(userId);
+    let cart = await this.repository.findByUserId(userId);
 
-      if (!cart) {
-        cart = await this.repository.createEmptyCart(userId);
-      }
-
-      await setCache(cacheKey, cart, CACHE_TTL.CART);
-      return cart;
-    } catch (error) {
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve cart");
-      }
-      throw error; // Re-throw domain errors
+    if (!cart) {
+      cart = await this.repository.createEmptyCart(userId);
     }
+
+    await setCache(cacheKey, cart, CACHE_TTL.CART);
+    return cart;
   }
 
   // Check if products are in cart
@@ -65,22 +57,14 @@ export class CartService {
       return cached;
     }
 
-    try {
-      const cartProducts = await this.repository.checkProductsInCart(
-        userId,
-        data.productIds,
-      );
-      const responseData = { cartProducts };
+    const cartProducts = await this.repository.checkProductsInCart(
+      userId,
+      data.productIds,
+    );
+    const responseData = { cartProducts };
 
-      await setCache(cacheKey, responseData, CACHE_TTL.CART);
-      return responseData;
-    } catch (error) {
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to check products in cart");
-      }
-      throw error; // Re-throw domain errors
-    }
+    await setCache(cacheKey, responseData, CACHE_TTL.CART);
+    return responseData;
   }
 
   // Add item to cart with proper error handling
@@ -88,45 +72,28 @@ export class CartService {
     userId: string,
     data: AddToCartRequest,
   ): Promise<{ success: true; message: string }> {
-    try {
-      await this.repository.addItem(userId, data);
+    await this.repository.addItem(userId, data);
 
-      // Increment product cart count for analytics (only for new items)
-      const cart = await this.repository.findByUserId(userId);
-      const existingItem = cart?.items.find(
-        (item) => item.productId === data.productId,
-      );
+    // Increment product cart count for analytics (only for new items)
+    const cart = await this.repository.findByUserId(userId);
+    const existingItem = cart?.items.find(
+      (item) => item.productId === data.productId,
+    );
 
-      if (!existingItem) {
-        await this.repository.incrementProductCartCount(data.productId);
-      }
-
-      // Invalidate caches
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${userId}`),
-        deleteCache(`user:counts:${userId}`),
-      ]);
-
-      return {
-        success: true,
-        message: "Item added to cart successfully",
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof ProductNotFoundError) {
-        throw error;
-      }
-      if (error instanceof InsufficientStockError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to add item to cart");
-      }
-
-      throw error; // Re-throw unknown errors
+    if (!existingItem) {
+      await this.repository.incrementProductCartCount(data.productId);
     }
+
+    // Invalidate caches
+    await Promise.all([
+      invalidateCacheByPrefix(`cart:${userId}`),
+      deleteCache(`user:counts:${userId}`),
+    ]);
+
+    return {
+      success: true,
+      message: "Item added to cart successfully",
+    };
   }
 
   // Update cart item quantity with proper error handling
@@ -134,45 +101,22 @@ export class CartService {
     userId: string,
     data: UpdateCartRequest,
   ): Promise<{ success: true; message: string }> {
-    try {
-      await this.repository.updateItemQuantity(
-        userId,
-        data.productId,
-        data.quantity,
-      );
+    await this.repository.updateItemQuantity(
+      userId,
+      data.productId,
+      data.quantity,
+    );
 
-      // Invalidate caches
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${userId}`),
-        deleteCache(`user:counts:${userId}`),
-      ]);
+    // Invalidate caches
+    await Promise.all([
+      invalidateCacheByPrefix(`cart:${userId}`),
+      deleteCache(`user:counts:${userId}`),
+    ]);
 
-      return {
-        success: true,
-        message: "Cart updated successfully",
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof CartNotFoundError) {
-        throw error;
-      }
-      if (error instanceof CartItemNotFoundError) {
-        throw error;
-      }
-      if (error instanceof ProductNotFoundError) {
-        throw error;
-      }
-      if (error instanceof InsufficientStockError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to update cart item");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    return {
+      success: true,
+      message: "Cart updated successfully",
+    };
   }
 
   // Remove item from cart or clear entire cart with proper error handling
@@ -180,41 +124,24 @@ export class CartService {
     userId: string,
     data: RemoveFromCartRequest,
   ): Promise<{ success: true; message: string }> {
-    try {
-      if (data.clearAll) {
-        await this.repository.clearCart(userId);
-      } else if (data.productId) {
-        await this.repository.removeItem(userId, data.productId);
-      }
-
-      // Invalidate caches
-      await Promise.all([
-        invalidateCacheByPrefix(`cart:${userId}`),
-        deleteCache(`user:counts:${userId}`),
-      ]);
-
-      return {
-        success: true,
-        message: data.clearAll
-          ? "Cart cleared successfully"
-          : "Item removed successfully",
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof CartNotFoundError) {
-        throw error;
-      }
-      if (error instanceof CartItemNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to remove item from cart");
-      }
-
-      throw error; // Re-throw unknown errors
+    if (data.clearAll) {
+      await this.repository.clearCart(userId);
+    } else if (data.productId) {
+      await this.repository.removeItem(userId, data.productId);
     }
+
+    // Invalidate caches
+    await Promise.all([
+      invalidateCacheByPrefix(`cart:${userId}`),
+      deleteCache(`user:counts:${userId}`),
+    ]);
+
+    return {
+      success: true,
+      message: data.clearAll
+        ? "Cart cleared successfully"
+        : "Item removed successfully",
+    };
   }
 
   // Get cart item count for user counts API

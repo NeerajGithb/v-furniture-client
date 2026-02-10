@@ -2,7 +2,6 @@ import { ICategoriesRepository } from "./ICategoriesRepository";
 import { CategoriesRepository } from "./CategoriesRepository";
 import { CategorySlugSchema } from "./CategoriesSchemas";
 import { CategoryNotFoundError } from "./CategoriesErrors";
-import { RepositoryError } from "../shared/InfrastructureError";
 import {
   Category,
   Subcategory,
@@ -24,17 +23,9 @@ export class CategoriesService {
       return cached;
     }
 
-    try {
-      const categories = await this.repository.findAllCategories();
-      await setCache(cacheKey, categories, CACHE_TTL.CATEGORIES);
-      return categories;
-    } catch (error) {
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve categories");
-      }
-      throw error; // Re-throw domain errors
-    }
+    const categories = await this.repository.findAllCategories();
+    await setCache(cacheKey, categories, CACHE_TTL.CATEGORIES);
+    return categories;
   }
 
   // Get all subcategories with caching
@@ -46,17 +37,9 @@ export class CategoriesService {
       return cached;
     }
 
-    try {
-      const subcategories = await this.repository.findAllSubcategories();
-      await setCache(cacheKey, subcategories, CACHE_TTL.SUBCATEGORIES);
-      return subcategories;
-    } catch (error) {
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve subcategories");
-      }
-      throw error; // Re-throw domain errors
-    }
+    const subcategories = await this.repository.findAllSubcategories();
+    await setCache(cacheKey, subcategories, CACHE_TTL.SUBCATEGORIES);
+    return subcategories;
   }
 
   // Get paginated categories
@@ -72,15 +55,8 @@ export class CategoriesService {
       totalPages: number;
     };
   }> {
-    try {
-      const result = await this.repository.findPaginatedCategories(page, limit);
-      return result;
-    } catch (error) {
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve paginated categories");
-      }
-      throw error;
-    }
+    const result = await this.repository.findPaginatedCategories(page, limit);
+    return result;
   }
 
   // Get paginated subcategories
@@ -96,18 +72,11 @@ export class CategoriesService {
       totalPages: number;
     };
   }> {
-    try {
-      const result = await this.repository.findPaginatedSubcategories(
-        page,
-        limit,
-      );
-      return result;
-    } catch (error) {
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve paginated subcategories");
-      }
-      throw error;
-    }
+    const result = await this.repository.findPaginatedSubcategories(
+      page,
+      limit,
+    );
+    return result;
   }
 
   // Get category by slug with products
@@ -122,26 +91,12 @@ export class CategoriesService {
       return cached;
     }
 
-    try {
-      const category = await this.repository.findCategoryBySlugWithProducts(
-        validatedData.slug,
-        20,
-      );
-      await setCache(cacheKey, category, CACHE_TTL.CATEGORY);
-      return category;
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (error instanceof CategoryNotFoundError) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to retrieve category");
-      }
-
-      throw error; // Re-throw unknown errors
-    }
+    const category = await this.repository.findCategoryBySlugWithProducts(
+      validatedData.slug,
+      20,
+    );
+    await setCache(cacheKey, category, CACHE_TTL.CATEGORY);
+    return category;
   }
 }
 

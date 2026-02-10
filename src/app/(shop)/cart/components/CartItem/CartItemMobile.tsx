@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Info,
 } from "lucide-react";
+import React from "react";
+import slugify from "slugify";
 import { calculateInsuranceCost } from "../../utils/cartHelpers";
 
 interface Props {
@@ -40,11 +42,33 @@ export const CartItemMobile = ({
   onToggleInsurance,
 }: Props) => {
   const insuranceCost = calculateInsuranceCost(item.itemTotal);
+  const [showOutOfStockMsg, setShowOutOfStockMsg] = React.useState(false);
+
+  const handleSelectionClick = (e: React.MouseEvent) => {
+    if (!item.product?.isInStock) {
+      e.preventDefault();
+      setShowOutOfStockMsg(true);
+      setTimeout(() => setShowOutOfStockMsg(false), 2000);
+      return;
+    }
+    onToggleSelection();
+  };
+
+  const cleanName = item.product?.name?.replace(/\s*\(Copy\)\s*/g, "").trim() || "Product";
+  const productUrl = `/products/${slugify(cleanName, {
+    lower: true,
+    strict: true,
+  })}-${item.product?._id}`;
 
   return (
     <div className="block sm:hidden">
       <div className="relative mb-4">
-        <div className="aspect-video w-full bg-gray-100 rounded-xs overflow-hidden">
+        <a 
+          href={productUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block aspect-video w-full bg-gray-100 rounded-xs overflow-hidden hover:opacity-90 transition-opacity"
+        >
           {item.product?.mainImage?.url ? (
             <img
               src={item.product.mainImage.url}
@@ -56,26 +80,44 @@ export const CartItemMobile = ({
               <Package className="w-12 h-12 text-gray-400" />
             </div>
           )}
-        </div>
+        </a>
 
-        <button
-          onClick={onToggleSelection}
-          disabled={isUpdating}
-          className={`absolute top-3 right-3 w-6 h-6 rounded border-2 flex items-center justify-center transition-all duration-200 disabled:opacity-50 ${
-            isSelected
-              ? "bg-blue-600 border-blue-600 text-white"
-              : "border-white bg-white/80 backdrop-blur-sm hover:border-blue-400 hover:bg-blue-50"
-          }`}
+        <div
+          onClick={handleSelectionClick}
+          className="absolute top-3 right-3 cursor-pointer"
         >
-          {isSelected && <Check className="w-4 h-4" />}
-        </button>
+          <button
+            disabled={isUpdating}
+            className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all duration-200 pointer-events-none ${
+              !item.product?.isInStock
+                ? "border-gray-300 bg-gray-200 opacity-50"
+                : isSelected
+                ? "bg-blue-600 border-blue-600 text-white"
+                : "border-white bg-white/80 backdrop-blur-sm"
+            }`}
+          >
+            {isSelected && <Check className="w-4 h-4" />}
+          </button>
+        </div>
+        
+        {showOutOfStockMsg && (
+          <div className="absolute top-3 right-12 z-10 bg-red-600 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-right-2 duration-200">
+            Out of stock
+            <div className="absolute right-0 top-1/2 translate-x-1 -translate-y-1/2 w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-l-4 border-l-red-600"></div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
         <div>
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg mb-2">
+          <a 
+            href={productUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-gray-900 dark:text-gray-100 text-lg mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors block"
+          >
             {item.product?.name || "Product"}
-          </h3>
+          </a>
           {item.selectedVariant && (
             <div className="flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-400 mb-2">
               {item.selectedVariant.color && (

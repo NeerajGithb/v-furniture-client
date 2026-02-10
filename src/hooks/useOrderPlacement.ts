@@ -14,7 +14,6 @@ import {
   createOrderPayload,
   getPaymentErrorMessage,
 } from "@/app/(shop)/payment/utils/paymentHelpers";
-import { getUserFriendlyErrorMessage } from "@/utils/errorMessages";
 
 export const useOrderPlacement = () => {
   const navigate = useNavigate();
@@ -179,8 +178,8 @@ export const useOrderPlacement = () => {
       throw new Error("Unknown payment method");
     },
     onError: (error: Error) => {
-      const userFriendlyMessage = getUserFriendlyErrorMessage(error.message);
-      setOrderError(userFriendlyMessage);
+      // Show the actual backend error message instead of converting it
+      setOrderError(error.message || "Unable to complete your order. Please try again.");
     },
     onSettled: () => {
       isPlacingOrderRef.current = false;

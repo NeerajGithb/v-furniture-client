@@ -51,15 +51,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         await fetchUser();
         return true;
       } else {
-        // Refresh token expired or invalid
         setUser(null);
         setAuthenticated(false);
         return false;
       }
     } catch (err) {
-      // Only log in development and don't treat as error for unauthenticated users
-      if (process.env.NODE_ENV === "development") {
-      }
       setUser(null);
       setAuthenticated(false);
       return false;
@@ -100,9 +96,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setAuthenticated(false);
       }
     } catch (err) {
-      // Only log unexpected errors in development
-      if (process.env.NODE_ENV === "development") {
-      }
       setUser(null);
       setAuthenticated(false);
     } finally {

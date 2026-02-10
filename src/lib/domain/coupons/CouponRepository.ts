@@ -3,7 +3,6 @@ import {
   PaginationOptions,
   PaginatedResult,
 } from "./ICouponRepository";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { CouponNotFoundError } from "./CouponErrors";
 import { CreateCouponRequest, UpdateCouponRequest } from "./CouponSchemas";
 import { Coupon } from "@/types/coupon";
@@ -13,173 +12,107 @@ import CouponModel from "@/models/Coupon";
 import CouponUsageModel from "@/models/CouponUsage";
 
 export class CouponRepository implements ICouponRepository {
-  // Find coupon by ID
   async findById(id: string): Promise<Coupon> {
-    try {
-      const coupon = await CouponModel.findById(id).lean();
-      if (!coupon) {
-        throw new CouponNotFoundError(id);
-      }
-      return this.mapToType(coupon);
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof CouponNotFoundError) {
-        throw error;
-      }
-      throw new RepositoryError("Failed to find coupon by ID", error as Error);
+    const coupon = await CouponModel.findById(id).lean();
+    if (!coupon) {
+      throw new CouponNotFoundError(id);
     }
+    return this.mapToType(coupon);
   }
 
-  // Find coupon by code
   async findByCode(code: string): Promise<Coupon | null> {
-    try {
-      const coupon = await CouponModel.findOne({
-        code: code.toUpperCase(),
-        active: true,
-      }).lean();
-      return coupon ? this.mapToType(coupon) : null;
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to find coupon by code",
-        error as Error,
-      );
-    }
+    const coupon = await CouponModel.findOne({
+      code: code.toUpperCase(),
+      active: true,
+    }).lean();
+    return coupon ? this.mapToType(coupon) : null;
   }
 
-  // Find all coupons with pagination
   async findAll(
     options: PaginationOptions = { page: 1, limit: 10 },
   ): Promise<PaginatedResult<Coupon>> {
-    try {
-      const { page, limit } = options;
-      const skip = (page - 1) * limit;
+    const { page, limit } = options;
+    const skip = (page - 1) * limit;
 
-      const [coupons, total] = await Promise.all([
-        CouponModel.find({ active: true })
-          .select("-__v")
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        CouponModel.countDocuments({ active: true }),
-      ]);
+    const [coupons, total] = await Promise.all([
+      CouponModel.find({ active: true })
+        .select("-__v")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CouponModel.countDocuments({ active: true }),
+    ]);
 
-      const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / limit);
 
-      return {
-        items: safeMapList(coupons, this.mapToType.bind(this), "coupon"),
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems: total,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1,
-        },
-      };
-    } catch (error) {
-      throw new RepositoryError("Failed to find coupons", error as Error);
-    }
+    return {
+      items: safeMapList(coupons, this.mapToType.bind(this), "coupon"),
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: total,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 
-  // Create new coupon with transaction support
   async create(data: CreateCouponRequest): Promise<Coupon> {
-    try {
-      return await withTransaction(async (session) => {
-        const coupon = new CouponModel({
-          ...data,
-          active: true,
-          usedCount: 0,
-        });
-
-        await coupon.save({ session });
-        return this.mapToType(coupon.toObject());
+    return withTransaction(async (session) => {
+      const coupon = new CouponModel({
+        ...data,
+        active: true,
+        usedCount: 0,
       });
-    } catch (error) {
-      throw new RepositoryError("Failed to create coupon", error as Error);
-    }
+
+      await coupon.save({ session });
+      return this.mapToType(coupon.toObject());
+    });
   }
 
-  // Update coupon with transaction support
   async update(id: string, data: UpdateCouponRequest): Promise<Coupon> {
-    try {
-      return await withTransaction(async (session) => {
-        const coupon = await CouponModel.findByIdAndUpdate(
-          id,
-          { $set: data },
-          { new: true, runValidators: true, session },
-        ).lean();
+    return withTransaction(async (session) => {
+      const coupon = await CouponModel.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true, runValidators: true, session },
+      ).lean();
 
-        if (!coupon) {
-          throw new CouponNotFoundError(id);
-        }
-
-        return this.mapToType(coupon);
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof CouponNotFoundError) {
-        throw error;
+      if (!coupon) {
+        throw new CouponNotFoundError(id);
       }
-      throw new RepositoryError("Failed to update coupon", error as Error);
-    }
+
+      return this.mapToType(coupon);
+    });
   }
 
-  // Delete coupon with transaction support
   async delete(id: string): Promise<boolean> {
-    try {
-      return await withTransaction(async (session) => {
-        const coupon = await CouponModel.findById(id).session(session);
-        if (!coupon) {
-          throw new CouponNotFoundError(id);
-        }
-
-        await CouponModel.findByIdAndDelete(id, { session });
-        return true;
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof CouponNotFoundError) {
-        throw error;
+    return withTransaction(async (session) => {
+      const coupon = await CouponModel.findById(id).session(session);
+      if (!coupon) {
+        throw new CouponNotFoundError(id);
       }
-      throw new RepositoryError("Failed to delete coupon", error as Error);
-    }
+
+      await CouponModel.findByIdAndDelete(id, { session });
+      return true;
+    });
   }
 
-  // Get user usage count for a coupon
   async getUserUsageCount(userId: string, couponId: string): Promise<number> {
-    try {
-      const count = await CouponUsageModel.countDocuments({
-        userId,
-        couponId,
-      });
-      return count;
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to get user usage count",
-        error as Error,
-      );
-    }
+    return CouponUsageModel.countDocuments({ userId, couponId });
   }
 
-  // Increment coupon usage count with transaction support
   async incrementUsageCount(couponId: string): Promise<void> {
-    try {
-      await withTransaction(async (session) => {
-        await CouponModel.findByIdAndUpdate(
-          couponId,
-          { $inc: { usedCount: 1 } },
-          { session },
-        );
-      });
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to increment usage count",
-        error as Error,
+    await withTransaction(async (session) => {
+      await CouponModel.findByIdAndUpdate(
+        couponId,
+        { $inc: { usedCount: 1 } },
+        { session },
       );
-    }
+    });
   }
 
-  // Map database object to domain type
   private mapToType(db: any): Coupon {
     validateRequiredFields(db, ["_id", "code", "type", "value"], "coupon");
 

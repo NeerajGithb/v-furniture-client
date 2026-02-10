@@ -8,7 +8,6 @@ import {
   OAuthUserInfoError,
   OAuthUserEmailMissingError,
 } from "./OAuthErrors";
-import { RepositoryError } from "../shared/InfrastructureError";
 
 export class OAuthService {
   constructor(private repository: IOAuthRepository = new OAuthRepository()) {}
@@ -20,33 +19,13 @@ export class OAuthService {
     | { type: "redirect"; url: string }
     | { type: "auth"; user: User; tokens: AuthTokens }
   > {
-    try {
-      // Determine if this is initiate or callback flow
-      const isCallback = query.action === "callback" || !!query.code;
+    // Determine if this is initiate or callback flow
+    const isCallback = query.action === "callback" || !!query.code;
 
-      if (isCallback) {
-        return this.handleCallback(query);
-      } else {
-        return this.handleInitiate(query);
-      }
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (
-        error instanceof OAuthProviderNotSupportedError ||
-        error instanceof OAuthCodeMissingError ||
-        error instanceof OAuthTokenExchangeError ||
-        error instanceof OAuthUserInfoError ||
-        error instanceof OAuthUserEmailMissingError
-      ) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("OAuth authentication failed");
-      }
-
-      throw error; // Re-throw unknown errors
+    if (isCallback) {
+      return this.handleCallback(query);
+    } else {
+      return this.handleInitiate(query);
     }
   }
 
@@ -58,23 +37,12 @@ export class OAuthService {
       throw new OAuthProviderNotSupportedError(query.provider);
     }
 
-    try {
-      const authUrl = this.repository.getAuthUrl(
-        query.provider,
-        query.redirectUrl,
-      );
+    const authUrl = this.repository.getAuthUrl(query.provider);
 
-      return {
-        type: "redirect",
-        url: authUrl,
-      };
-    } catch (error) {
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("Failed to initiate OAuth flow");
-      }
-      throw error; // Re-throw domain errors
-    }
+    return {
+      type: "redirect",
+      url: authUrl,
+    };
   }
 
   private async handleCallback(
@@ -95,89 +63,61 @@ export class OAuthService {
       throw new OAuthProviderNotSupportedError(query.provider);
     }
 
-    try {
-      // Exchange code for tokens
-      let tokens;
-      try {
-        tokens = await this.repository.exchangeCodeForTokens(
-          query.provider,
-          query.code,
-        );
-      } catch (error) {
-        throw new OAuthTokenExchangeError(query.provider);
-      }
+    // Exchange code for tokens
+    const tokens = await this.repository.exchangeCodeForTokens(
+      query.provider,
+      query.code,
+    );
 
-      // Get user info from OAuth provider
-      let userInfo;
-      try {
-        userInfo = await this.repository.getUserInfo(
-          query.provider,
-          tokens.access_token,
-        );
-      } catch (error) {
-        throw new OAuthUserInfoError(query.provider);
-      }
+    // Get user info from OAuth provider
+    const userInfo = await this.repository.getUserInfo(
+      query.provider,
+      tokens.access_token,
+    );
 
-      if (!userInfo.email) {
-        throw new OAuthUserEmailMissingError(query.provider);
-      }
-
-      // Find or create user
-      let user = await this.repository.findUserByEmail(userInfo.email);
-
-      if (!user) {
-        // Create new user
-        user = await this.repository.createUser({
-          name: userInfo.name || "",
-          email: userInfo.email,
-          photoURL: userInfo.picture,
-          hasOAuth: true,
-        });
-      } else {
-        // Update existing user if needed
-        const updates: Partial<User> = {};
-        let shouldUpdate = false;
-
-        if (!user.hasOAuth) {
-          updates.hasOAuth = true;
-          shouldUpdate = true;
-        }
-
-        if (userInfo.picture && user.photoURL !== userInfo.picture) {
-          updates.photoURL = userInfo.picture;
-          shouldUpdate = true;
-        }
-
-        if (shouldUpdate) {
-          user = await this.repository.updateUser(user._id, updates);
-        }
-      }
-
-      // Create authentication tokens
-      const authTokens = this.repository.createAuthTokens(user);
-
-      return {
-        type: "auth",
-        user,
-        tokens: authTokens,
-      };
-    } catch (error) {
-      // Handle domain errors - let them bubble up with proper context
-      if (
-        error instanceof OAuthTokenExchangeError ||
-        error instanceof OAuthUserInfoError ||
-        error instanceof OAuthUserEmailMissingError
-      ) {
-        throw error;
-      }
-
-      // Handle infrastructure errors
-      if (error instanceof RepositoryError) {
-        throw new Error("OAuth callback processing failed");
-      }
-
-      throw error; // Re-throw unknown errors
+    if (!userInfo.email) {
+      throw new OAuthUserEmailMissingError(query.provider);
     }
+
+    // Find or create user
+    let user = await this.repository.findUserByEmail(userInfo.email);
+
+    if (!user) {
+      // Create new user
+      user = await this.repository.createUser({
+        name: userInfo.name || "",
+        email: userInfo.email,
+        photoURL: userInfo.picture,
+        hasOAuth: true,
+      });
+    } else {
+      // Update existing user if needed
+      const updates: Partial<User> = {};
+      let shouldUpdate = false;
+
+      if (!user.hasOAuth) {
+        updates.hasOAuth = true;
+        shouldUpdate = true;
+      }
+
+      if (userInfo.picture && user.photoURL !== userInfo.picture) {
+        updates.photoURL = userInfo.picture;
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        user = await this.repository.updateUser(user._id, updates);
+      }
+    }
+
+    // Create authentication tokens
+    const authTokens = this.repository.createAuthTokens(user);
+
+    return {
+      type: "auth",
+      user,
+      tokens: authTokens,
+    };
   }
 
   private isSupportedProvider(

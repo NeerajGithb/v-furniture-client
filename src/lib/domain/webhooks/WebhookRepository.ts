@@ -3,7 +3,6 @@ import {
   PaymentRecord,
   WebhookEventRecord,
 } from "./IWebhookRepository";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { WebhookEventRequest } from "./WebhookSchemas";
 import { validateRequiredFields } from "../shared/mapperUtils";
 import Payment from "@/models/Payment";
@@ -13,74 +12,49 @@ import { invalidateCacheByPrefix, deleteCache } from "@/lib/cache";
 export class WebhookRepository implements IWebhookRepository {
   // Find webhook event by ID
   async findEventById(eventId: string): Promise<WebhookEventRecord | null> {
-    try {
-      const event = await WebhookEvent.findOne({ eventId }).lean();
+    const event = await WebhookEvent.findOne({ eventId }).lean();
 
-      if (!event) {
-        return null;
-      }
-
-      return this.mapToWebhookEvent(event);
-    } catch (error) {
-      throw new RepositoryError("Failed to find webhook event", error as Error);
+    if (!event) {
+      return null;
     }
+
+    return this.mapToWebhookEvent(event);
   }
 
   // Create webhook event
   async createEvent(data: WebhookEventRequest): Promise<WebhookEventRecord> {
-    try {
-      const event = await WebhookEvent.create({
-        eventId: data.eventId,
-        eventType: data.eventType,
-        gateway: data.gateway,
-        payload: data.payload,
-        processed: data.processed,
-      });
+    const event = await WebhookEvent.create({
+      eventId: data.eventId,
+      eventType: data.eventType,
+      gateway: data.gateway,
+      payload: data.payload,
+      processed: data.processed,
+    });
 
-      return this.mapToWebhookEvent(event.toObject());
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to create webhook event",
-        error as Error,
-      );
-    }
+    return this.mapToWebhookEvent(event.toObject());
   }
 
   // Mark event as processed
   async markEventAsProcessed(eventId: string): Promise<void> {
-    try {
-      await WebhookEvent.updateOne(
-        { eventId },
-        { processed: true, processedAt: new Date() },
-      );
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to mark event as processed",
-        error as Error,
-      );
-    }
+    await WebhookEvent.updateOne(
+      { eventId },
+      { processed: true, processedAt: new Date() },
+    );
   }
 
   // Find payment by Razorpay order ID
   async findPaymentByOrderId(orderId: string): Promise<PaymentRecord | null> {
-    try {
-      const payment = await Payment.findOne({
-        gatewayTransactionId: orderId,
-      })
-        .populate("orderId", "_id")
-        .lean();
+    const payment = await Payment.findOne({
+      gatewayTransactionId: orderId,
+    })
+      .populate("orderId", "_id")
+      .lean();
 
-      if (!payment) {
-        return null;
-      }
-
-      return this.mapToPaymentRecord(payment);
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to find payment by order ID",
-        error as Error,
-      );
+    if (!payment) {
+      return null;
     }
+
+    return this.mapToPaymentRecord(payment);
   }
 
   // Update payment success
@@ -92,19 +66,12 @@ export class WebhookRepository implements IWebhookRepository {
       paidAt: Date;
     },
   ): Promise<void> {
-    try {
-      await Payment.findByIdAndUpdate(paymentId, {
-        status: "success",
-        gatewayPaymentId: data.gatewayPaymentId,
-        gatewayResponse: data.gatewayResponse,
-        paidAt: data.paidAt,
-      });
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to update payment success",
-        error as Error,
-      );
-    }
+    await Payment.findByIdAndUpdate(paymentId, {
+      status: "success",
+      gatewayPaymentId: data.gatewayPaymentId,
+      gatewayResponse: data.gatewayResponse,
+      paidAt: data.paidAt,
+    });
   }
 
   // Update payment failure
@@ -116,19 +83,12 @@ export class WebhookRepository implements IWebhookRepository {
       gatewayResponse: any;
     },
   ): Promise<void> {
-    try {
-      await Payment.findByIdAndUpdate(paymentId, {
-        status: "failed",
-        gatewayPaymentId: data.gatewayPaymentId,
-        failureReason: data.failureReason,
-        gatewayResponse: data.gatewayResponse,
-      });
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to update payment failure",
-        error as Error,
-      );
-    }
+    await Payment.findByIdAndUpdate(paymentId, {
+      status: "failed",
+      gatewayPaymentId: data.gatewayPaymentId,
+      failureReason: data.failureReason,
+      gatewayResponse: data.gatewayResponse,
+    });
   }
 
   // Update order after payment
@@ -140,29 +100,20 @@ export class WebhookRepository implements IWebhookRepository {
       expectedDeliveryDate?: Date;
     },
   ): Promise<void> {
-    try {
-      const updateData: any = {
-        paymentStatus: data.paymentStatus,
-        orderStatus: data.orderStatus,
-      };
+    const updateData: any = {
+      paymentStatus: data.paymentStatus,
+      orderStatus: data.orderStatus,
+    };
 
-      if (data.expectedDeliveryDate) {
-        updateData.expectedDeliveryDate = data.expectedDeliveryDate;
-      }
+    if (data.expectedDeliveryDate) {
+      updateData.expectedDeliveryDate = data.expectedDeliveryDate;
+    }
 
-      await Payment.findById(orderId)
-        .populate("orderId", "_id")
-        .then(async (payment: any) => {
-          if (payment && payment.orderId) {
-            Object.assign(payment.orderId, updateData);
-            await payment.orderId.save();
-          }
-        });
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to update order after payment",
-        error as Error,
-      );
+    const payment = await Payment.findById(orderId).populate("orderId", "_id");
+    
+    if (payment && (payment as any).orderId) {
+      Object.assign((payment as any).orderId, updateData);
+      await (payment as any).orderId.save();
     }
   }
 
@@ -171,15 +122,12 @@ export class WebhookRepository implements IWebhookRepository {
     userId: string,
     orderNumber: string,
   ): Promise<void> {
-    try {
-      await Promise.all([
-        invalidateCacheByPrefix(`orders:user:${userId}`),
-        invalidateCacheByPrefix(`order:${orderNumber}`),
-        deleteCache(`user:counts:${userId}`),
-      ]);
-    } catch (error) {
-      // Don't throw error for cache invalidation failures
-    }
+    // Cache invalidation failures should not break the flow
+    await Promise.allSettled([
+      invalidateCacheByPrefix(`orders:user:${userId}`),
+      invalidateCacheByPrefix(`order:${orderNumber}`),
+      deleteCache(`user:counts:${userId}`),
+    ]);
   }
 
   // Private helper methods

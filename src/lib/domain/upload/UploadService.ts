@@ -3,9 +3,7 @@ import { UploadRepository } from "./UploadRepository";
 import { FileUploadRequest, Base64UploadRequest } from "./UploadSchemas";
 import {
   NoFileProvidedError,
-  UnsupportedContentTypeError,
   InvalidFileFormatError,
-  InvalidJsonBodyError,
   MissingUploadDataError,
 } from "./UploadErrors";
 

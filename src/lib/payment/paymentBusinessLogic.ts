@@ -175,6 +175,12 @@ export async function processSuccessfulPayment(
   razorpayOrderId: string,
   razorpaySignature: string,
 ): Promise<{ success: boolean; order: any }> {
+  console.log('🟢 [processSuccessfulPayment] Starting payment update:', {
+    paymentId: payment.paymentId,
+    currentStatus: payment.status,
+    razorpayPaymentId,
+  });
+
   // Update payment status
   payment.status = "success";
   payment.gatewayPaymentId = razorpayPaymentId;
@@ -184,14 +190,40 @@ export async function processSuccessfulPayment(
     razorpay_signature: razorpaySignature,
   };
   payment.paidAt = new Date();
+  
+  console.log('🟢 [processSuccessfulPayment] Saving payment...');
   await payment.save();
+  console.log('✅ [processSuccessfulPayment] Payment saved successfully');
 
-  // Update order status
-  const order = payment.orderId;
+  // Update order status - fetch the full order document
+  const orderId = payment.orderId._id || payment.orderId;
+  console.log('🟢 [processSuccessfulPayment] Fetching order:', orderId);
+  
+  const order = await Order.findById(orderId);
+  
+  if (!order) {
+    console.log('❌ [processSuccessfulPayment] Order not found:', orderId);
+    return { success: false, order: null };
+  }
+
+  console.log('🟢 [processSuccessfulPayment] Order found:', {
+    orderNumber: order.orderNumber,
+    currentOrderStatus: order.orderStatus,
+    currentPaymentStatus: order.paymentStatus,
+  });
+
   order.paymentStatus = "paid";
-  order.orderStatus = "confirmed";
+  // Don't change orderStatus - it should remain "pending" until admin confirms
   order.expectedDeliveryDate = calculateExpectedDeliveryDate();
+  
+  console.log('🟢 [processSuccessfulPayment] Saving order with new status...');
   await order.save();
+  
+  console.log('✅ [processSuccessfulPayment] Order saved successfully:', {
+    orderNumber: order.orderNumber,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+  });
 
   return { success: true, order };
 }

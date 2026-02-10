@@ -7,49 +7,55 @@ import {
 export class PaymentNotFoundError extends NotFoundError {
   readonly code = "PAYMENT_NOT_FOUND";
   constructor(identifier?: string) {
-    super("Payment not found", { identifier });
+    super(
+      identifier ? `Payment not found: ${identifier}` : "Payment not found",
+      { identifier }
+    );
   }
 }
 
 export class OrderNotFoundError extends NotFoundError {
   readonly code = "ORDER_NOT_FOUND";
   constructor(orderId?: string) {
-    super("Order not found", { orderId });
+    super(
+      orderId ? `Order not found: ${orderId}` : "Order not found",
+      { orderId }
+    );
   }
 }
 
 export class InvalidPaymentMethodError extends BusinessRuleError {
   readonly code = "INVALID_PAYMENT_METHOD";
   constructor(method: string) {
-    super("Invalid payment method", { method });
+    super(`Invalid payment method: ${method}`, { method });
   }
 }
 
 export class OrderNotEligibleForPaymentError extends BusinessRuleError {
   readonly code = "ORDER_NOT_ELIGIBLE_FOR_PAYMENT";
   constructor(reason: string) {
-    super("Order is not eligible for payment", { reason });
+    super(`Order is not eligible for payment: ${reason}`, { reason });
   }
 }
 
 export class PaymentAlreadyProcessedError extends BusinessRuleError {
   readonly code = "PAYMENT_ALREADY_PROCESSED";
   constructor() {
-    super("Payment has already been processed");
+    super("Payment has already been processed for this order");
   }
 }
 
 export class PaymentVerificationFailedError extends BusinessRuleError {
   readonly code = "PAYMENT_VERIFICATION_FAILED";
   constructor(reason: string) {
-    super("Payment verification failed", { reason });
+    super(`Payment verification failed: ${reason}`, { reason });
   }
 }
 
 export class RazorpayOrderCreationError extends BusinessRuleError {
   readonly code = "RAZORPAY_ORDER_CREATION_FAILED";
   constructor(message: string) {
-    super("Failed to create Razorpay order", { message });
+    super(`Failed to create Razorpay order: ${message}`, { originalError: message });
   }
 }
 

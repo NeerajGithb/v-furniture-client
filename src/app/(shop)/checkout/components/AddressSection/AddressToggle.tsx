@@ -17,13 +17,15 @@ export const AddressToggle = ({
     return (
       <div className="mb-3 p-2.5 sm:p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xs">
         <p className="text-orange-800 dark:text-orange-300 text-xs">
-          No address selected. Please choose or add a delivery address.
+          {addressCount === 0 
+            ? "No addresses found. Please add a delivery address."
+            : "No address selected. Please choose a delivery address."}
         </p>
         <button
           onClick={onToggle}
           className="mt-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-medium"
         >
-          Select Address
+          {addressCount === 0 ? "Add Address" : "Select Address"}
         </button>
       </div>
     );

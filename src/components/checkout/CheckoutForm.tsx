@@ -169,12 +169,19 @@ const CheckoutForm = ({
                   </h2>
                 </div>
 
-                <AddressToggle
-                  selectedAddress={selectedAddress}
-                  showAllAddresses={showAllAddresses}
-                  addressCount={addresses.length}
-                  onToggle={onToggleShowAll}
-                />
+                {addressLoading ? (
+                  <div className="mb-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xs animate-pulse">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
+                  </div>
+                ) : (
+                  <AddressToggle
+                    selectedAddress={selectedAddress}
+                    showAllAddresses={showAllAddresses}
+                    addressCount={addresses.length}
+                    onToggle={onToggleShowAll}
+                  />
+                )}
 
                 {showAllAddresses && (
                   <div className="space-y-4">

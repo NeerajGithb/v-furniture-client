@@ -6,7 +6,6 @@ import {
   PaginatedResult,
 } from "./IWishlistRepository";
 import { AddToWishlistRequest } from "./WishlistSchemas";
-import { RepositoryError } from "../shared/InfrastructureError";
 import { safeMapList, validateRequiredFields } from "../shared/mapperUtils";
 import {
   WishlistNotFoundError,
@@ -22,209 +21,159 @@ export class WishlistRepository implements IWishlistRepository {
     userId: string,
     options: PaginationOptions = { page: 1, limit: 12 },
   ): Promise<PaginatedResult<any>> {
-    try {
-      const { page, limit, sortBy = "addedAt", sortOrder = "desc" } = options;
-      const skip = (page - 1) * limit;
+    const { page, limit, sortBy = "addedAt", sortOrder = "desc" } = options;
+    const skip = (page - 1) * limit;
 
-      const wishlist = await Wishlist.findOne({ userId }).populate({
-        path: "items.productId",
-        select:
-          "_id name finalPrice originalPrice discountPercent mainImage inStockQuantity ratings reviews isNewArrival isBestSeller material dimensions",
-      });
+    const wishlist = await Wishlist.findOne({ userId }).populate({
+      path: "items.productId",
+      select:
+        "_id name finalPrice originalPrice discountPercent mainImage inStockQuantity ratings reviews isNewArrival isBestSeller material dimensions",
+    });
 
-      if (!wishlist) {
-        return {
-          items: [],
-          pagination: {
-            currentPage: page,
-            totalPages: 0,
-            totalItems: 0,
-            hasMore: false,
-          },
-        };
-      }
-
-      // Filter out invalid items (products that no longer exist)
-      const allValidItems = wishlist.items.filter(
-        (item: any) => item.productId,
-      );
-
-      // Clean up invalid items if any (with transaction)
-      if (allValidItems.length !== wishlist.items.length) {
-        await withTransaction(async (session) => {
-          wishlist.items = allValidItems;
-          await wishlist.save({ session });
-        });
-      }
-
-      // Sort items
-      const allowedSortFields = ["addedAt", "name", "finalPrice"];
-      const safeSortBy = allowedSortFields.includes(sortBy)
-        ? sortBy
-        : "addedAt";
-      const sortMultiplier = sortOrder === "asc" ? 1 : -1;
-
-      allValidItems.sort((a: any, b: any) => {
-        if (safeSortBy === "addedAt") {
-          return (
-            (new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()) *
-            sortMultiplier
-          );
-        } else if (safeSortBy === "name") {
-          return (
-            a.productId.name.localeCompare(b.productId.name) * sortMultiplier
-          );
-        } else if (safeSortBy === "finalPrice") {
-          return (
-            (a.productId.finalPrice - b.productId.finalPrice) * sortMultiplier
-          );
-        }
-        return 0;
-      });
-
-      // Apply pagination
-      const paginatedItems = safeMapList(
-        allValidItems.slice(skip, skip + limit),
-        this.mapWishlistItem.bind(this),
-        "wishlist item",
-      );
-
-      const total = allValidItems.length;
-      const totalPages = Math.ceil(total / limit);
-
+    if (!wishlist) {
       return {
-        items: paginatedItems,
+        items: [],
         pagination: {
           currentPage: page,
-          totalPages,
-          totalItems: total,
-          hasMore: page < totalPages,
+          totalPages: 0,
+          totalItems: 0,
+          hasMore: false,
         },
       };
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to find wishlist by user ID",
-        error as Error,
-      );
     }
+
+    // Filter out invalid items (products that no longer exist)
+    const allValidItems = wishlist.items.filter(
+      (item: any) => item.productId,
+    );
+
+    // Clean up invalid items if any (with transaction)
+    if (allValidItems.length !== wishlist.items.length) {
+      await withTransaction(async (session) => {
+        wishlist.items = allValidItems;
+        await wishlist.save({ session });
+      });
+    }
+
+    // Sort items
+    const allowedSortFields = ["addedAt", "name", "finalPrice"];
+    const safeSortBy = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : "addedAt";
+    const sortMultiplier = sortOrder === "asc" ? 1 : -1;
+
+    allValidItems.sort((a: any, b: any) => {
+      if (safeSortBy === "addedAt") {
+        return (
+          (new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()) *
+          sortMultiplier
+        );
+      } else if (safeSortBy === "name") {
+        return (
+          a.productId.name.localeCompare(b.productId.name) * sortMultiplier
+        );
+      } else if (safeSortBy === "finalPrice") {
+        return (
+          (a.productId.finalPrice - b.productId.finalPrice) * sortMultiplier
+        );
+      }
+      return 0;
+    });
+
+    // Apply pagination
+    const paginatedItems = safeMapList(
+      allValidItems.slice(skip, skip + limit),
+      this.mapWishlistItem.bind(this),
+      "wishlist item",
+    );
+
+    const total = allValidItems.length;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items: paginatedItems,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: total,
+        hasMore: page < totalPages,
+      },
+    };
   }
 
   // Create empty wishlist for user
   async createEmptyWishlist(userId: string): Promise<void> {
-    try {
-      await Wishlist.create({ userId, items: [] });
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to create empty wishlist",
-        error as Error,
-      );
-    }
+    await Wishlist.create({ userId, items: [] });
   }
 
   // Add item to wishlist with transaction support
   async addItem(userId: string, data: AddToWishlistRequest): Promise<number> {
-    try {
-      return await withTransaction(async (session) => {
-        // Verify product exists
-        const product = await Product.findById(data.productId).session(session);
-        if (!product) {
-          throw new ProductNotFoundError(data.productId);
-        }
-
-        // Find or create wishlist
-        let wishlist = await Wishlist.findOne({ userId }).session(session);
-        if (!wishlist) {
-          wishlist = new Wishlist({ userId, items: [] });
-        }
-
-        // Check if item already exists
-        const existingItem = wishlist.items.find(
-          (item: any) => item.productId.toString() === data.productId,
-        );
-
-        if (existingItem) {
-          throw new ProductAlreadyInWishlistError(data.productId);
-        }
-
-        // Add item to beginning of list (most recent first)
-        wishlist.items.unshift({
-          productId: data.productId,
-          addedAt: new Date(),
-        });
-
-        await wishlist.save({ session });
-        return wishlist.items.length;
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (
-        error instanceof ProductNotFoundError ||
-        error instanceof ProductAlreadyInWishlistError
-      ) {
-        throw error;
+    return await withTransaction(async (session) => {
+      // Verify product exists
+      const product = await Product.findById(data.productId).session(session);
+      if (!product) {
+        throw new ProductNotFoundError(data.productId);
       }
-      throw new RepositoryError(
-        "Failed to add item to wishlist",
-        error as Error,
+
+      // Find or create wishlist
+      let wishlist = await Wishlist.findOne({ userId }).session(session);
+      if (!wishlist) {
+        wishlist = new Wishlist({ userId, items: [] });
+      }
+
+      // Check if item already exists
+      const existingItem = wishlist.items.find(
+        (item: any) => item.productId.toString() === data.productId,
       );
-    }
+
+      if (existingItem) {
+        throw new ProductAlreadyInWishlistError(data.productId);
+      }
+
+      // Add item to beginning of list (most recent first)
+      wishlist.items.unshift({
+        productId: data.productId,
+        addedAt: new Date(),
+      });
+
+      await wishlist.save({ session });
+      return wishlist.items.length;
+    });
   }
 
   // Remove specific item from wishlist with transaction support
   async removeItem(userId: string, productId: string): Promise<number> {
-    try {
-      return await withTransaction(async (session) => {
-        const wishlist = await Wishlist.findOne({ userId }).session(session);
-        if (!wishlist) {
-          throw new WishlistNotFoundError(userId);
-        }
-
-        const itemCountBefore = wishlist.items.length;
-        wishlist.items = wishlist.items.filter(
-          (item: any) => item.productId.toString() !== productId,
-        );
-
-        if (wishlist.items.length === itemCountBefore) {
-          throw new WishlistItemNotFoundError(productId);
-        }
-
-        await wishlist.save({ session });
-        return wishlist.items.length;
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (
-        error instanceof WishlistNotFoundError ||
-        error instanceof WishlistItemNotFoundError
-      ) {
-        throw error;
+    return await withTransaction(async (session) => {
+      const wishlist = await Wishlist.findOne({ userId }).session(session);
+      if (!wishlist) {
+        throw new WishlistNotFoundError(userId);
       }
-      throw new RepositoryError(
-        "Failed to remove item from wishlist",
-        error as Error,
+
+      const itemCountBefore = wishlist.items.length;
+      wishlist.items = wishlist.items.filter(
+        (item: any) => item.productId.toString() !== productId,
       );
-    }
+
+      if (wishlist.items.length === itemCountBefore) {
+        throw new WishlistItemNotFoundError(productId);
+      }
+
+      await wishlist.save({ session });
+      return wishlist.items.length;
+    });
   }
 
   // Clear entire wishlist with transaction support
   async clearWishlist(userId: string): Promise<void> {
-    try {
-      await withTransaction(async (session) => {
-        const wishlist = await Wishlist.findOne({ userId }).session(session);
-        if (!wishlist) {
-          throw new WishlistNotFoundError(userId);
-        }
-
-        wishlist.items = [];
-        await wishlist.save({ session });
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof WishlistNotFoundError) {
-        throw error;
+    await withTransaction(async (session) => {
+      const wishlist = await Wishlist.findOne({ userId }).session(session);
+      if (!wishlist) {
+        throw new WishlistNotFoundError(userId);
       }
-      throw new RepositoryError("Failed to clear wishlist", error as Error);
-    }
+
+      wishlist.items = [];
+      await wishlist.save({ session });
+    });
   }
 
   // Batch remove multiple items from wishlist with transaction support
@@ -232,31 +181,19 @@ export class WishlistRepository implements IWishlistRepository {
     userId: string,
     productIds: string[],
   ): Promise<number> {
-    try {
-      return await withTransaction(async (session) => {
-        const wishlist = await Wishlist.findOne({ userId }).session(session);
-        if (!wishlist) {
-          throw new WishlistNotFoundError(userId);
-        }
-
-        const initialLength = wishlist.items.length;
-        wishlist.items = wishlist.items.filter(
-          (item: any) => !productIds.includes(item.productId.toString()),
-        );
-
-        await wishlist.save({ session });
-        return wishlist.items.length;
-      });
-    } catch (error) {
-      // Re-throw domain errors as-is
-      if (error instanceof WishlistNotFoundError) {
-        throw error;
+    return await withTransaction(async (session) => {
+      const wishlist = await Wishlist.findOne({ userId }).session(session);
+      if (!wishlist) {
+        throw new WishlistNotFoundError(userId);
       }
-      throw new RepositoryError(
-        "Failed to batch remove items from wishlist",
-        error as Error,
+
+      wishlist.items = wishlist.items.filter(
+        (item: any) => !productIds.includes(item.productId.toString()),
       );
-    }
+
+      await wishlist.save({ session });
+      return wishlist.items.length;
+    });
   }
 
   // Check which products are in wishlist
@@ -264,39 +201,31 @@ export class WishlistRepository implements IWishlistRepository {
     userId: string,
     productIds: string[],
   ): Promise<string[]> {
-    try {
-      const wishlist = await Wishlist.findOne({ userId });
-      const wishlistedProducts: string[] = [];
+    const wishlist = await Wishlist.findOne({ userId });
+    const wishlistedProducts: string[] = [];
 
-      if (wishlist) {
-        for (const productId of productIds) {
-          const isInWishlist = wishlist.items.some(
-            (item: any) => item.productId.toString() === productId,
-          );
-          if (isInWishlist) {
-            wishlistedProducts.push(productId);
-          }
+    if (wishlist) {
+      for (const productId of productIds) {
+        const isInWishlist = wishlist.items.some(
+          (item: any) => item.productId.toString() === productId,
+        );
+        if (isInWishlist) {
+          wishlistedProducts.push(productId);
         }
       }
-
-      return wishlistedProducts;
-    } catch (error) {
-      throw new RepositoryError(
-        "Failed to check products in wishlist",
-        error as Error,
-      );
     }
+
+    return wishlistedProducts;
   }
 
   // Increment product wishlist count (for analytics)
   async incrementProductWishlistCount(productId: string): Promise<void> {
-    try {
-      await Product.findByIdAndUpdate(productId, {
-        $inc: { wishlistCount: 1 },
-      });
-    } catch (error) {
-      // Don't throw error for analytics failure, just log
-    }
+    // Analytics operation - failures should not break the flow
+    await Product.findByIdAndUpdate(productId, {
+      $inc: { wishlistCount: 1 },
+    }).catch(() => {
+      // Silently ignore analytics errors
+    });
   }
 
   // Private helper method

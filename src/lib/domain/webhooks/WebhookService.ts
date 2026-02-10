@@ -10,7 +10,6 @@ import {
   InvalidWebhookPayloadError,
   DuplicateWebhookEventError,
   PaymentNotFoundError,
-  WebhookProcessingError,
   UnsupportedWebhookEventError,
 } from "./WebhookErrors";
 import crypto from "crypto";

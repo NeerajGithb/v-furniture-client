@@ -30,6 +30,7 @@
     "ioredis": "^5.8.2",
     "jose": "^6.0.12",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.1.0",
     "lucide-react": "^0.539.0",
     "marked": "^17.0.0",
     "mongoose": "^8.19.2",

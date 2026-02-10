@@ -180,8 +180,12 @@ const CartPage = () => {
     await clearCartMutation.mutateAsync();
   };
 
-  const handleSelectAll = () =>
-    selectAllItems(cart?.items.map((item: any) => item.productId) || []);
+  const handleSelectAll = () => {
+    const inStockItems = cart?.items
+      .filter((item: any) => item.product?.isInStock)
+      .map((item: any) => item.productId) || [];
+    selectAllItems(inStockItems);
+  };
 
   const handleMoveToWishlist = async (productId: string) => {
     const isAlreadyInWishlist = wishlistHelpers.isWishlisted(productId);

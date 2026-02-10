@@ -41,12 +41,14 @@ export const useCheckoutManagement = () => {
 
   // Initialize default address
   useEffect(() => {
-    const defaultAddress =
-      addresses.find((addr) => addr.isDefault) || addresses[0];
+    if (!addresses.length || addressLoading) return;
+    
+    const defaultAddress = addresses.find((addr) => addr.isDefault) || addresses[0];
+    
     if (checkoutData && !checkoutData.selectedAddressId && defaultAddress) {
       checkoutStore.updateSelectedAddress(defaultAddress._id);
     }
-  }, [checkoutData, addresses, checkoutStore]);
+  }, [addresses, addressLoading, checkoutData?.selectedAddressId, checkoutStore]);
 
   // Navigation handlers
   const handleGoBack = useCallback(() => {
