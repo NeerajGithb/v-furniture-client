@@ -303,4 +303,5 @@ export interface IInspiration {
         slug: string;
         mainImage?: { url: string; alt: string; publicId: string };
       }>;
+  tags?: string[];
 }

@@ -390,10 +390,19 @@ export const useSearchPage = () => {
     [data],
   );
   const searchResult = data?.pages[0];
-  const facets = searchResult?.facets;
+  const facets = searchResult?.filters;
   const pagination = searchResult?.pagination;
   const totalProducts = pagination?.total || 0;
-  const detectedFilters = searchResult?.intent?.filters || {};
+  const detectedFilters = searchResult?.appliedFilters || {
+    category: null,
+    subcategory: null,
+    material: null,
+    minPrice: null,
+    maxPrice: null,
+    inStock: null,
+    onSale: null,
+    sort: "",
+  };
   const noResults = !isLoading && products.length === 0 && !!query.trim();
 
   // Action handlers
@@ -508,11 +517,11 @@ export const useSearchPage = () => {
       : [];
 
     // Materials from facets (already filtered by search)
-    const materials = facets?.materials?.map((m) => m.value) || [];
+    const materials = facets?.materials || [];
 
     // Get first detected category/subcategory (singular)
-    const detectedCategory = detectedFilters.categories?.[0] || null;
-    const detectedSubcategory = detectedFilters.subcategories?.[0] || null;
+    const detectedCategory = detectedFilters.category || null;
+    const detectedSubcategory = detectedFilters.subcategory || null;
 
     return {
       categories: allCategories,

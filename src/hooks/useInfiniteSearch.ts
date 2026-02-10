@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { searchService } from "@/services/searchService";
-import { SearchResult, UseInfiniteSearchParams } from "@/types/search";
+import { UseInfiniteSearchParams } from "@/types/search";
+import { ProductsApiResponse } from "@/types/Product";
 import { useMemo } from "react";
 
 export const useInfiniteSearch = ({
@@ -15,15 +16,15 @@ export const useInfiniteSearch = ({
     [query, filters, limit],
   );
 
-  const result = useInfiniteQuery<SearchResult>({
+  const result = useInfiniteQuery<ProductsApiResponse>({
     queryKey,
     queryFn: ({ pageParam }) => {
       const page = pageParam as number;
-      return searchService.search({ query, filters, page, limit });
+      return searchService.search({ query, ...filters, page, limit });
     },
     getNextPageParam: (lastPage) => {
-      const { page, hasMore } = lastPage.pagination;
-      return hasMore ? page + 1 : undefined;
+      const { page, pages } = lastPage.pagination;
+      return page < pages ? page + 1 : undefined;
     },
     enabled: enabled && query.trim().length > 0,
     staleTime: 2 * 60 * 1000,

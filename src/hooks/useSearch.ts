@@ -4,9 +4,9 @@ import { searchAnalyticsService } from "@/services/searchAnalyticsService";
 import {
   UseSearchParams,
   UseAutocompleteParams,
-  SearchResult,
   AutocompleteResult,
 } from "@/types/search";
+import { ProductsApiResponse } from "@/types/Product";
 import {
   ProductClickData,
   AddToCartData,
@@ -27,9 +27,9 @@ export const useSearch = ({
     [query, filters, page, limit],
   );
 
-  const result = useQuery<SearchResult>({
+  const result = useQuery<ProductsApiResponse>({
     queryKey,
-    queryFn: () => searchService.search({ query, filters, page, limit }),
+    queryFn: () => searchService.search({ query, ...filters, page, limit }),
     enabled: enabled && query.trim().length > 0,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,

@@ -127,7 +127,7 @@ const InspirationPage = () => {
                           </p>
 
                           {/* Tags */}
-                          {inspiration.tags?.length > 0 && (
+                          {inspiration.tags && inspiration.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
                               {inspiration.tags
                                 .slice(0, 3)
