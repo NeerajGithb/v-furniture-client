@@ -152,54 +152,42 @@ export interface CurrentProduct {
   finalPrice: number;
   originalPrice: number;
   discountPercent?: number;
-  emiPrice?: number;
+
+  // images
+  mainImage?: {
+    url: string;
+    alt?: string;
+    publicId?: string;
+  };
 
   // availability
   inStockQuantity?: number;
-  isActive?: boolean;
-
-  // classification
-  brand?: string;
-  categoryId?: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  subCategoryId?: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
 
   // physical details
   material?: string;
-  size?: string[];
-  colorOptions?: string[];
   dimensions?: {
     length?: number;
     width?: number;
     height?: number;
   };
-  weight?: number;
-
-  // content (talkable details)
-  description?: string;
-  bulletPoints?: string[];
-  highlights?: string[];
-
-  // trust & policy
-  warranty?: string;
-  returnPolicy?: string;
 
   // social proof
-  ratings?: number;
   reviews?: {
     average: number;
     count: number;
   };
 
   // flags / badges
-  badge?: string;
-  isBestSeller?: boolean;
   isNewArrival?: boolean;
+  isBestSeller?: boolean;
+
+  // Optional fields for backward compatibility (not stored in state)
+  brand?: string;
+  emiPrice?: number;
+  colorOptions?: string[];
+  size?: string[];
+  weight?: number;
+  description?: string;
+  warranty?: string;
+  returnPolicy?: string;
 }

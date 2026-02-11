@@ -61,11 +61,16 @@ export class ProductsService {
       return cached;
     }
 
+    // Fetch product - if this throws, nothing gets cached
     const product = await this.repository.findById(id);
-    await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
-
-    // Increment view count asynchronously
-    this.repository.incrementViewCount(id);
+    
+    // Only cache if we successfully got a product
+    if (product) {
+      await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
+      
+      // Increment view count asynchronously
+      this.repository.incrementViewCount(id);
+    }
 
     return product;
   }
@@ -81,11 +86,16 @@ export class ProductsService {
       return cached;
     }
 
+    // Fetch product - if this throws, nothing gets cached
     const product = await this.repository.findBySlug(slug);
-    await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
-
-    // Increment view count asynchronously
-    this.repository.incrementViewCount(product._id);
+    
+    // Only cache if we successfully got a product
+    if (product) {
+      await setCache(cacheKey, product, CACHE_TTL.PRODUCT);
+      
+      // Increment view count asynchronously
+      this.repository.incrementViewCount(product._id);
+    }
 
     return product;
   }

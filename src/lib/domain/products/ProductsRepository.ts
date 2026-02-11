@@ -101,7 +101,7 @@ export class ProductsRepository implements IProductsRepository {
     const [products, total] = await Promise.all([
       ProductModel.find(query)
         .select(
-          "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+          "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
         )
         .skip((pagination.page - 1) * pagination.limit)
         .limit(pagination.limit)
@@ -138,7 +138,7 @@ export class ProductsRepository implements IProductsRepository {
       ]
     })
       .select(
-        "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+        "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
       )
       .limit(limit)
       .sort({ "reviews.average": -1, isBestSeller: -1, createdAt: -1 })
@@ -165,7 +165,7 @@ export class ProductsRepository implements IProductsRepository {
       ]
     })
       .select(
-        "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+        "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
       )
       .limit(limit)
       .sort({ "reviews.average": -1, isBestSeller: -1, createdAt: -1 })
@@ -217,7 +217,7 @@ export class ProductsRepository implements IProductsRepository {
       inStockQuantity: { $gt: 0 },
     })
       .select(
-        "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+        "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
       )
       .sort({ createdAt: -1 })
       .lean()
@@ -243,7 +243,7 @@ export class ProductsRepository implements IProductsRepository {
       inStockQuantity: { $gt: 0 },
     })
       .select(
-        "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+        "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
       )
       .sort({ createdAt: -1 })
       .lean()
@@ -282,7 +282,7 @@ export class ProductsRepository implements IProductsRepository {
         const [products, totalInCategory] = await Promise.all([
           ProductModel.find(categoryQuery)
             .select(
-              "_id name finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
+              "_id name slug finalPrice originalPrice discountPercent mainImage reviews inStockQuantity material dimensions isNewArrival isBestSeller",
             )
             .sort(sortQuery)
             .limit(productsPerCategory)
@@ -571,6 +571,7 @@ export class ProductsRepository implements IProductsRepository {
     return {
       _id: db._id.toString(),
       name: db.name,
+      slug: db.slug, // Add slug for product URLs
       finalPrice: db.finalPrice,
       originalPrice: db.originalPrice,
       discountPercent: db.discountPercent,

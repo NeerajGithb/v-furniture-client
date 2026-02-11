@@ -79,6 +79,15 @@ export abstract class BaseService {
       // If backend sends raw data without structure, wrap it in success response
       return { success: true, data: rawData as T };
     } catch (error) {
+      console.error("🔴 [BaseService] Error processing response:", {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        error: error instanceof Error ? error.message : error,
+        isApiError: isApiError(error),
+        errorBody: isApiError(error) ? (error as any).body : null,
+      });
+
       if (isApiError(error) && error.body) {
         return error.body as ApiResponse<T>;
       }

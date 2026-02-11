@@ -1,7 +1,6 @@
 import { saveConversationState } from "./state/saveConversationState";
 import { getConversationState } from "./state/getConversationState";
 import { ConversationState } from "./state/conversationState";
-import { getProductSlug } from "@/lib/utils/slugify";
 
 import { cartService } from "@/lib/domain/cart/CartService";
 import { wishlistService } from "@/lib/domain/wishlist/WishlistService";
@@ -258,14 +257,18 @@ async function checkAvailability(
   await saveConversationState(conversationId, {
     lastProducts: products.map((p: any) => ({
       _id: p._id,
+      name: p.name,
       slug: p.slug,
-      price: p.price,
       finalPrice: p.finalPrice,
       originalPrice: p.originalPrice,
-      title: p.title,
-      name: p.name,
-      sku: p.sku,
-      itemId: p.itemId,
+      discountPercent: p.discountPercent,
+      mainImage: p.mainImage,
+      reviews: p.reviews,
+      inStockQuantity: p.inStockQuantity,
+      material: p.material,
+      dimensions: p.dimensions,
+      isNewArrival: p.isNewArrival,
+      isBestSeller: p.isBestSeller,
     })),
     activeCategory: category || null,
     activeSubcategory: subcategory || null,
@@ -461,19 +464,28 @@ async function fetchProducts(
 
   const products = productsResult.products || [];
 
+  console.log("🔵 [fetchProducts] First product:", products[0] ? {
+    _id: products[0]._id,
+    name: products[0].name,
+    slug: products[0].slug,
+    hasSlug: !!products[0].slug
+  } : "No products");
+
   await saveConversationState(conversationId, {
     lastProducts: products.map((p: any) => ({
       _id: p._id,
+      name: p.name,
       slug: p.slug,
-      price: p.price,
       finalPrice: p.finalPrice,
       originalPrice: p.originalPrice,
-      title: p.title,
-      name: p.name,
-      sku: p.sku,
-      itemId: p.itemId,
+      discountPercent: p.discountPercent,
+      mainImage: p.mainImage,
+      reviews: p.reviews,
+      inStockQuantity: p.inStockQuantity,
       material: p.material,
-      size: p.size,
+      dimensions: p.dimensions,
+      isNewArrival: p.isNewArrival,
+      isBestSeller: p.isBestSeller,
     })),
     activeCategory: params.category || null,
     activeSubcategory: params.subcategory || null,
@@ -508,33 +520,19 @@ async function handleViewProduct(
     currentProduct: {
       _id: product._id,
       name: product.name,
-      slug: getProductSlug(product), // Generate slug if missing
+      slug: product.slug,
       finalPrice: product.finalPrice,
       originalPrice: product.originalPrice,
       discountPercent: product.discountPercent,
-      emiPrice: product.emiPrice,
-      inStockQuantity: product.inStockQuantity,
-      isActive: product.isActive,
-      brand: product.brand,
-      categoryId: product.categoryId,
-      subCategoryId: product.subCategoryId,
-      material: product.material,
-      size: product.size,
-      colorOptions: product.colorOptions,
-      dimensions: product.dimensions,
-      weight: product.weight,
-      description: product.description,
-      bulletPoints: product.bulletPoints,
-      highlights: product.highlights,
-      warranty: product.warranty,
-      returnPolicy: product.returnPolicy,
-      ratings: product.ratings,
+      mainImage: product.mainImage,
       reviews: product.reviews
         ? { average: product.reviews.average, count: product.reviews.count }
         : undefined,
-      badge: product.badge,
-      isBestSeller: product.isBestSeller,
+      inStockQuantity: product.inStockQuantity,
+      material: product.material,
+      dimensions: product.dimensions,
       isNewArrival: product.isNewArrival,
+      isBestSeller: product.isBestSeller,
     },
   });
 

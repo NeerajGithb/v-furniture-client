@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/dbConnect";
 import { ApiResponseBuilder } from "@/lib/utils/apiResponse";
+// Import all models to ensure they're registered with Mongoose
+import "@/models";
 
 type Handler<T extends any[]> = (...args: T) => Promise<NextResponse>;
 
