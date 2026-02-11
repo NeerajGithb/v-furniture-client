@@ -2,27 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { chatService } from "@/services/chatService";
 import { useChatStore, Message } from "@/stores/chatStore";
+import { ChatHistoryItem } from "@/types/chat";
 import { executeChatAction } from "@/lib/ai/chatActionExecutor";
 import { navigationTracker } from "@/lib/ai/utils/navigationTracker";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  products?: any[];
-  categories?: any[];
-  isNew?: boolean;
-  actionPerformed?: string | null;
-  navigationUrl?: string | null;
-  shouldRenderProducts?: boolean;
-  structuredData?: any;
-  isLoading?: boolean;
-  navigation?: {
-    type: string;
-    message: string;
-  } | null;
-}
 
 interface SendMessageRequest {
   message: string;
@@ -34,8 +16,8 @@ interface SendMessageRequest {
 export const useSendMessage = () => {
   return useMutation({
     mutationFn: async (request: SendMessageRequest) => {
-      // Convert Message[] to ChatMessage[] for the service
-      const chatHistory = request.history.map((msg) => ({
+      // Convert Message[] to ChatHistoryItem[] for the service
+      const chatHistory: ChatHistoryItem[] = request.history.map((msg) => ({
         id: msg.id,
         text: msg.content,
         sender: msg.role,
@@ -121,7 +103,7 @@ export const useChatOperations = () => {
       if (shouldRenderProducts && products && products.length > 0) {
         addMessage({
           role: "assistant",
-          content: aiResponse || data.message,
+          content: aiResponse || data.message || "Here are the products",
           products: products,
           categories: categories,
           shouldRenderProducts: true,
@@ -198,7 +180,7 @@ export const useChatOperations = () => {
         // No navigation - show final message immediately
         addMessage({
           role: "assistant",
-          content: aiResponse || data.message,
+          content: aiResponse || data.message || "Action completed",
           actionPerformed: decision.action,
           navigationUrl: null,
           shouldRenderProducts: false,
@@ -212,7 +194,7 @@ export const useChatOperations = () => {
       // INFORMATION RESPONSE (No action needed)
       addMessage({
         role: "assistant",
-        content: aiResponse || data.message,
+        content: aiResponse || data.message || "I'm here to help",
         categories: categories,
         shouldRenderProducts: false,
         structuredData: structuredData || null,
