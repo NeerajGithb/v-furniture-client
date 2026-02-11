@@ -1,6 +1,7 @@
 import { saveConversationState } from "./state/saveConversationState";
 import { getConversationState } from "./state/getConversationState";
 import { ConversationState } from "./state/conversationState";
+import { getProductSlug } from "@/lib/utils/slugify";
 
 import { cartService } from "@/lib/domain/cart/CartService";
 import { wishlistService } from "@/lib/domain/wishlist/WishlistService";
@@ -507,7 +508,7 @@ async function handleViewProduct(
     currentProduct: {
       _id: product._id,
       name: product.name,
-      slug: product.slug,
+      slug: getProductSlug(product), // Generate slug if missing
       finalPrice: product.finalPrice,
       originalPrice: product.originalPrice,
       discountPercent: product.discountPercent,

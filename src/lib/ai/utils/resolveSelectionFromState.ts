@@ -1,5 +1,6 @@
 import { UnderstandingResult } from "@/types/ai";
 import { getConversationState } from "../state/getConversationState";
+import { getProductSlug } from "@/lib/utils/slugify";
 
 export async function resolveSelectionFromState(
   conversationId: string,
@@ -43,7 +44,7 @@ export async function resolveSelectionFromState(
 
     if (selectedProduct) {
       decision.productId = selectedProduct._id;
-      decision.productSlug = selectedProduct.slug;
+      decision.productSlug = getProductSlug(selectedProduct); // Generate slug if missing
       decision.index = resolvedIndex;
 
       if (decision.action === "greeting" || !decision.action) {
@@ -92,7 +93,7 @@ export async function resolveSelectionFromState(
 
   if (selectedProduct) {
     decision.productId = selectedProduct._id;
-    decision.productSlug = selectedProduct.slug;
+    decision.productSlug = getProductSlug(selectedProduct); // Generate slug if missing
     decision.index = result.index;
 
     if (decision.action === "greeting" || !decision.action) {
