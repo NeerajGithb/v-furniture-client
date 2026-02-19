@@ -33,6 +33,7 @@ export interface OrdersListProps {
   onReorder: (order: Order) => void;
   onDownloadInvoice: (orderNumber: string) => void;
   onContactSupport: (orderNumber: string) => void;
+  onCompletePayment?: (order: Order) => void;
   onLoadMore: () => void;
   isOrderBeingDeleted: (orderNumber: string) => boolean;
 }

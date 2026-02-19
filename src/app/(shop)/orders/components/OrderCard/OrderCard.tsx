@@ -13,6 +13,7 @@ interface OrderCardProps {
   onReorder: () => void;
   onDownloadInvoice: () => void;
   onContactSupport: () => void;
+  onCompletePayment?: () => void;
 }
 
 export const OrderCard = ({
@@ -23,6 +24,7 @@ export const OrderCard = ({
   onReorder,
   onDownloadInvoice,
   onContactSupport,
+  onCompletePayment,
 }: OrderCardProps) => {
   return (
     <motion.div
@@ -43,6 +45,7 @@ export const OrderCard = ({
           onReorder={onReorder}
           onDownloadInvoice={onDownloadInvoice}
           onContactSupport={onContactSupport}
+          onCompletePayment={onCompletePayment}
         />
       </div>
     </motion.div>

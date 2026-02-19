@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Package } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders, useDeleteOrder } from "@/hooks/useOrderData";
 import { useOrderStore } from "@/stores/orderStore";
+import { paymentService } from "@/services/paymentService";
+import { RAZORPAY_SCRIPT_URL, getRazorpayOptions } from "@/app/(shop)/payment/utils/razorpayConfig";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -20,6 +23,12 @@ import { useNavigate } from "@/components/NavigationLoader";
 import { filterOrders, canDeleteOrder } from "./utils/orderHelpers";
 import type { Order, OrderItem } from "@/types/order";
 import type { CancelModalState, DeleteModalState } from "@/types/orders";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function OrdersPage() {
   const { user, authLoading } = useAuth();
@@ -98,6 +107,20 @@ export default function OrdersPage() {
 
   const hasActiveFilters =
     search !== "" || filterStatus !== "all" || filterTime !== "all";
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = RAZORPAY_SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
 
   // Action handlers
   const clearFilters = useCallback(() => {
@@ -178,6 +201,50 @@ export default function OrdersPage() {
     },
     [navigate],
   );
+
+  const handleCompletePayment = useCallback(
+    async (order: Order) => {
+      setOrderError(null);
+
+      const paymentData = await paymentService.createPayment({
+        orderId: order._id,
+        paymentMethod: "razorpay",
+        idempotencyKey: `retry-${order._id}-${Date.now()}`,
+      });
+
+      if (!window.Razorpay) {
+        setOrderError("Payment gateway not loaded. Please refresh and try again.");
+        return;
+      }
+
+      const options = getRazorpayOptions(
+        { orderNumber: order.orderNumber },
+        paymentData,
+        async (response: any) => {
+          await paymentService.verifyPayment({
+            paymentId: paymentData.paymentId,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+          
+          // Refetch orders to update the list
+          await refetch();
+          
+          // Show success message
+          toast.success("Payment successful! Order updated.");
+        },
+        () => {
+          setOrderError("Payment cancelled");
+        }
+      );
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    },
+    [refetch],
+  );
+
   const handleBrowseProducts = useCallback(
     () => navigate.push("/products"),
     [navigate],
@@ -275,6 +342,7 @@ export default function OrdersPage() {
                   onReorder={handleReorder}
                   onDownloadInvoice={handleDownloadInvoice}
                   onContactSupport={handleContactSupport}
+                  onCompletePayment={handleCompletePayment}
                   onLoadMore={handleLoadMore}
                   isOrderBeingDeleted={isOrderBeingDeleted}
                 />

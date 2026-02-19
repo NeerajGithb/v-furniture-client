@@ -21,6 +21,7 @@ interface OrderActionsProps {
   onReorder: () => void;
   onDownloadInvoice: () => void;
   onContactSupport: () => void;
+  onCompletePayment?: () => void;
 }
 
 export const OrderActions = ({
@@ -31,6 +32,7 @@ export const OrderActions = ({
   onReorder,
   onDownloadInvoice,
   onContactSupport,
+  onCompletePayment,
 }: OrderActionsProps) => {
   const navigate = useNavigate();
 
@@ -142,15 +144,21 @@ export const OrderActions = ({
 
           {/* Main Actions */}
           <div className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2">
-            {/* Complete Payment for pending online payments */}
-            {order.paymentStatus === "pending" && order.paymentMethod !== "cod" && (
-              <NavLink
-                href={`/payment?orderId=${order._id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-xs font-medium hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-xs flex items-center gap-1 animate-pulse"
+            {/* Complete Payment for COD orders - allow paying online before delivery */}
+            {order.paymentStatus === "pending" && 
+             order.paymentMethod === "cod" && 
+             order.orderStatus !== "delivered" && 
+             order.orderStatus !== "cancelled" && 
+             onCompletePayment && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCompletePayment();
+                }}
+                className="px-2 sm:px-3 py-1.5 sm:py-2 bg-green-600 dark:bg-green-700 text-white rounded-xs font-medium hover:bg-green-700 dark:hover:bg-green-600 transition-colors text-xs flex items-center gap-1"
               >
-                <span className="inline">Complete Payment</span>
-              </NavLink>
+                <span className="inline">Pay Online</span>
+              </button>
             )}
 
             {canCancelOrder(order.orderStatus) && (

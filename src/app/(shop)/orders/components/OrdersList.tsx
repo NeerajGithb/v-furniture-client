@@ -16,6 +16,7 @@ export const OrdersList = ({
   onReorder,
   onDownloadInvoice,
   onContactSupport,
+  onCompletePayment,
   onLoadMore,
   isOrderBeingDeleted,
 }: OrdersListProps) => {
@@ -55,6 +56,7 @@ export const OrdersList = ({
             onReorder={() => onReorder(order)}
             onDownloadInvoice={() => onDownloadInvoice(order.orderNumber)}
             onContactSupport={() => onContactSupport(order.orderNumber)}
+            onCompletePayment={onCompletePayment ? () => onCompletePayment(order) : undefined}
           />
         ))}
       </div>

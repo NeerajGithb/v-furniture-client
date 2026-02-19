@@ -65,9 +65,14 @@ export class OrderRepository implements IOrderRepository {
   ): Promise<PaginatedResult<Order>> {
     const query: any = { 
       userId,
-      // Only return orders that have been placed (have orderNumber and orderStatus)
-      orderNumber: { $exists: true, $ne: null },
-      orderStatus: { $exists: true, $ne: null, $ne: "" }
+      // Only return orders that have been successfully placed
+      // Orders must have orderNumber and a valid orderStatus (not empty/null)
+      orderNumber: { $exists: true, $nin: [null, ""] },
+      orderStatus: { 
+        $exists: true, 
+        $nin: [null, ""], 
+        $in: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "returned"] 
+      }
     };
     
     if (options.status && options.status !== "all") {
