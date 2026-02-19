@@ -174,7 +174,7 @@ export const useRemoveFromCart = (enabled: boolean = true) => {
 };
 
 // Mutation hook - clear cart (private - requires user)
-export const useClearCart = (enabled: boolean = true) => {
+export const useClearCart = (enabled: boolean = true, silent: boolean = false) => {
   const queryClient = useQueryClient();
   const { resetCheckout } = useCartStore();
   const { setCartProductIds } = useHomeStore();
@@ -192,10 +192,14 @@ export const useClearCart = (enabled: boolean = true) => {
       // Force refetch user counts immediately
       queryClient.refetchQueries({ queryKey: ["user-counts"] });
       resetCheckout();
-      toast.success("Cart cleared");
+      if (!silent) {
+        toast.success("Cart cleared");
+      }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to clear cart");
+      if (!silent) {
+        toast.error(error.message || "Failed to clear cart");
+      }
     },
   });
 };

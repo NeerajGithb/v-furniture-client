@@ -64,10 +64,7 @@ export class OrderRepository implements IOrderRepository {
     options: PaginationOptions,
   ): Promise<PaginatedResult<Order>> {
     const query: any = { 
-      userId,
-      // Only return orders that have been successfully placed
-      // Orders must have orderNumber and a valid orderStatus (not empty/null)
-      orderNumber: { $exists: true, $nin: [null, ""] },
+      userId, orderNumber: { $exists: true, $nin: [null, ""] },
       orderStatus: { 
         $exists: true, 
         $nin: [null, ""], 
@@ -266,11 +263,28 @@ export class OrderRepository implements IOrderRepository {
         order.cancellationReason = reason;
       }
 
-      // Handle refunds for paid orders
-      if (order.paymentStatus === "paid") {
-        order.paymentStatus = "refunded";
+      // Handle refunds for paid orders (online payments only)
+      if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
+        // Set payment status to refund pending
+        order.paymentStatus = "refund_pending";
         order.refundAmount = order.totalAmount;
-        order.refundedAt = new Date();
+        order.refundInitiatedAt = new Date();
+        
+        // Update payment record
+        await PaymentModel.findOneAndUpdate(
+          { orderId: order._id },
+          { 
+            status: "refund_pending",
+            refundAmount: order.totalAmount,
+            refundInitiatedAt: new Date(),
+            refundReason: reason || "Order cancelled by customer"
+          },
+          { session }
+        );
+        
+        // TODO: Initiate actual refund with Razorpay
+        // This should be done via a background job/webhook
+        // For now, admin will process refunds manually
       }
 
       await order.save({ session });

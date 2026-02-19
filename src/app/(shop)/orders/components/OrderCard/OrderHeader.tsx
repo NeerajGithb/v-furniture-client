@@ -16,14 +16,14 @@ export const OrderHeader = ({ order }: OrderHeaderProps) => {
     if (order.paymentStatus === "paid") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-          Paid
+          ✓ Paid
         </span>
       );
     }
     if (order.paymentStatus === "pending" && order.paymentMethod === "cod") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400">
-          COD
+          Cash on Delivery
         </span>
       );
     }
@@ -46,22 +46,42 @@ export const OrderHeader = ({ order }: OrderHeaderProps) => {
 
   // Order status badge
   const getOrderStatusBadge = () => {
-    const statusColors: Record<string, string> = {
-      pending: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400",
-      confirmed: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400",
-      processing: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400",
-      shipped: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-400",
-      delivered: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400",
-      cancelled: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400",
-      returned: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-400",
+    const statusConfig: Record<string, { label: string; color: string }> = {
+      pending: { 
+        label: "Order Placed", 
+        color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400" 
+      },
+      confirmed: { 
+        label: "Confirmed", 
+        color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400" 
+      },
+      processing: { 
+        label: "Processing", 
+        color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400" 
+      },
+      shipped: { 
+        label: "Shipped", 
+        color: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-400" 
+      },
+      delivered: { 
+        label: "Delivered", 
+        color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400" 
+      },
+      cancelled: { 
+        label: "Cancelled", 
+        color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400" 
+      },
+      returned: { 
+        label: "Returned", 
+        color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-400" 
+      },
     };
 
-    const color = statusColors[order.orderStatus] || statusColors.pending;
-    const label = order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1);
+    const config = statusConfig[order.orderStatus] || statusConfig.pending;
 
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${color}`}>
-        {label}
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.color}`}>
+        {config.label}
       </span>
     );
   };
