@@ -12,21 +12,11 @@ const slides = [
 
 const HeroBanner = () => {
   const [current, setCurrent] = useState(0);
-  const [prev, setPrev] = useState<number | null>(null);
-  const [animating, setAnimating] = useState(false);
   const [tick, setTick] = useState(0);
   const autoRef = useRef<NodeJS.Timeout | null>(null);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const isSwiping = useRef(false);
-
-  const goTo = useCallback((index: number) => {
-    if (animating) return;
-    setAnimating(true);
-    setPrev(current);
-    setCurrent(index);
-    setTick(t => t + 1);
-    setTimeout(() => { setPrev(null); setAnimating(false); }, 800);
-  }, [animating, current]);
+  const isTransitioning = useRef(false);
 
   const stopAuto = useCallback(() => {
     if (autoRef.current) { 
@@ -38,8 +28,10 @@ const HeroBanner = () => {
   const startAuto = useCallback(() => {
     stopAuto();
     autoRef.current = setInterval(() => {
-      setCurrent(prev => (prev + 1) % slides.length);
-      setTick(t => t + 1);
+      if (!isTransitioning.current) {
+        setCurrent(prev => (prev + 1) % slides.length);
+        setTick(t => t + 1);
+      }
     }, 5500);
   }, [stopAuto]);
 
@@ -48,52 +40,59 @@ const HeroBanner = () => {
     return () => stopAuto();
   }, [startAuto, stopAuto]);
 
-  const next = () => {
-    if (animating) return;
-    setAnimating(true);
-    setPrev(current);
-    setCurrent((current + 1) % slides.length);
+  const goToSlide = useCallback((index: number) => {
+    if (isTransitioning.current || index === current) return;
+    isTransitioning.current = true;
+    setCurrent(index);
     setTick(t => t + 1);
-    setTimeout(() => { setPrev(null); setAnimating(false); }, 800);
-  };
+    setTimeout(() => {
+      isTransitioning.current = false;
+    }, 900);
+  }, [current]);
 
-  const back = () => {
-    if (animating) return;
-    setAnimating(true);
-    setPrev(current);
-    setCurrent((current - 1 + slides.length) % slides.length);
-    setTick(t => t + 1);
-    setTimeout(() => { setPrev(null); setAnimating(false); }, 800);
-  };
+  const next = useCallback(() => {
+    goToSlide((current + 1) % slides.length);
+  }, [current, goToSlide]);
 
-  const onStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const back = useCallback(() => {
+    goToSlide((current - 1 + slides.length) % slides.length);
+  }, [current, goToSlide]);
+
+  const onStart = useCallback((e: React.TouchEvent) => {
     stopAuto();
     isSwiping.current = false;
-    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
-    startPos.current = { x, y };
+    startPos.current = { 
+      x: e.touches[0].clientX, 
+      y: e.touches[0].clientY 
+    };
   }, [stopAuto]);
 
-  const onMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const onMove = useCallback((e: React.TouchEvent) => {
     if (!startPos.current) return;
-    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
-    if (Math.abs(x - startPos.current.x) > 10 && Math.abs(y - startPos.current.y) < 50) {
+    const deltaX = Math.abs(e.touches[0].clientX - startPos.current.x);
+    const deltaY = Math.abs(e.touches[0].clientY - startPos.current.y);
+    
+    if (deltaX > 15 && deltaX > deltaY) {
       isSwiping.current = true;
       e.preventDefault();
     }
   }, []);
 
-  const onEnd = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (isSwiping.current) {
-      const x = "changedTouches" in e ? e.changedTouches[0].clientX : e.clientX;
-      const dist = startPos.current!.x - x;
-      if (dist > 50) next();
-      else if (dist < -50) back();
+  const onEnd = useCallback((e: React.TouchEvent) => {
+    if (isSwiping.current && startPos.current) {
+      const dist = startPos.current.x - e.changedTouches[0].clientX;
+      if (Math.abs(dist) > 60) {
+        if (dist > 0) {
+          next();
+        } else {
+          back();
+        }
+      }
     }
-    startAuto();
     startPos.current = null;
-  }, [startAuto]);
+    isSwiping.current = false;
+    startAuto();
+  }, [next, back, startAuto]);
 
   const slide = slides[current];
 
@@ -122,18 +121,13 @@ const HeroBanner = () => {
         onTouchStart={onStart}
         onTouchMove={onMove}
         onTouchEnd={onEnd}
-        onMouseDown={onStart}
-        onMouseMove={onMove}
-        onMouseUp={onEnd}
         style={{ touchAction: "pan-y" }}
       >
         {slides.map((s, i) => (
           <div
             key={s.id}
-            className={`absolute inset-0 transition-opacity duration-[800ms] ease-in-out ${
-              i === current ? "opacity-100 z-10"
-              : i === prev  ? "opacity-0  z-[9]"
-              :                "opacity-0  z-0"
+            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+              i === current ? "opacity-100 z-10" : "opacity-0 z-0"
             }`}
           >
             <img
@@ -195,7 +189,7 @@ const HeroBanner = () => {
             {slides.map((_, i) => (
               <button
                 key={i}
-                onClick={() => goTo(i)}
+                onClick={() => goToSlide(i)}
                 aria-label={`Slide ${i + 1}`}
                 className={`transition-all duration-500 rounded-full ${
                   i === current
