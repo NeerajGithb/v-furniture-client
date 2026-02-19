@@ -47,11 +47,7 @@ export const useOrderPlacement = () => {
           }
         });
 
-        try {
-          await Promise.allSettled(removePromises);
-        } catch (error) {
-          console.warn('Some cart items could not be removed after order placement:', error);
-        }
+        await Promise.allSettled(removePromises);
       }
     },
     [clearCart, removeFromCart],
@@ -101,9 +97,7 @@ export const useOrderPlacement = () => {
       if (checkoutData.selectedPaymentMethod === PaymentMethod.COD) {
         try {
           await removeOrderedItemsFromCart(selectedCartItems);
-        } catch (cartError) {
-          console.warn('Failed to remove items from cart after successful order:', cartError);
-        }
+        } catch (cartError) { }
 
         await queryClient.invalidateQueries({
           queryKey: ["orders"],

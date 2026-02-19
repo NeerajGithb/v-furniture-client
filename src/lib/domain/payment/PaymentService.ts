@@ -147,24 +147,11 @@ export class PaymentService {
 
   // Verify payment
   async verifyPayment(userId: string, data: VerifyPaymentRequest) {
-    console.log('🔵 [PaymentService] Starting payment verification:', {
-      userId,
-      paymentId: data.paymentId,
-      razorpayPaymentId: data.razorpayPaymentId,
-      razorpayOrderId: data.razorpayOrderId,
-    });
-
     // Get payment
     const payment = await this.repository.findById(data.paymentId, userId);
-    console.log('🔵 [PaymentService] Payment found:', {
-      paymentId: payment.paymentId,
-      status: payment.status,
-      orderId: payment.orderId?._id || payment.orderId,
-    });
 
     // Check if already verified
     if (payment.status === "success") {
-      console.log('⚠️ [PaymentService] Payment already verified');
       return {
         success: true,
         message: "Payment already verified",
@@ -178,7 +165,6 @@ export class PaymentService {
     }
 
     // Verify signature
-    console.log('🔵 [PaymentService] Verifying Razorpay signature...');
     const isValid = this.repository.verifyRazorpaySignature(
       data.razorpayOrderId,
       data.razorpayPaymentId,
@@ -186,7 +172,6 @@ export class PaymentService {
     );
 
     if (!isValid) {
-      console.log('❌ [PaymentService] Invalid signature');
       await this.repository.processFailedPayment(
         payment,
         "Invalid signature",
@@ -194,7 +179,6 @@ export class PaymentService {
       throw new InvalidSignatureError();
     }
 
-    console.log('✅ [PaymentService] Signature verified, processing successful payment...');
     // Process successful payment
     const result = await this.repository.processSuccessfulPayment(
       payment,
@@ -203,29 +187,19 @@ export class PaymentService {
       data.razorpaySignature,
     );
 
-    console.log('🔵 [PaymentService] Payment processed:', {
-      success: result.success,
-      orderId: result.order?._id,
-      orderStatus: result.order?.orderStatus,
-      paymentStatus: result.order?.paymentStatus,
-    });
-
     if (!result.success) {
-      console.log('❌ [PaymentService] Payment processing failed:', result.error);
       throw new PaymentVerificationFailedError(result.error!);
     }
 
     const order = result.order;
 
     // Invalidate caches
-    console.log('🔵 [PaymentService] Invalidating caches...');
     await this.repository.invalidatePaymentCaches(
       userId,
       order._id,
       data.paymentId,
     );
 
-    console.log('✅ [PaymentService] Payment verification completed successfully');
     return {
       success: true,
       message: "Payment verified successfully",

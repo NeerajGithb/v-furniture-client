@@ -98,19 +98,7 @@ export async function createRazorpayOrder(
   razorpayOrder?: any;
   payment?: any;
 }> {
-  console.log('🔵 [createRazorpayOrder] Environment check:', {
-    hasKeyId: !!RAZORPAY_KEY_ID,
-    hasSecret: !!RAZORPAY_SECRET,
-    keyIdLength: RAZORPAY_KEY_ID?.length || 0,
-    secretLength: RAZORPAY_SECRET?.length || 0,
-    nodeEnv: process.env.NODE_ENV,
-  });
-
   if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
-    console.error('❌ [createRazorpayOrder] Missing Razorpay credentials:', {
-      RAZORPAY_KEY_ID: RAZORPAY_KEY_ID ? 'SET' : 'MISSING',
-      RAZORPAY_SECRET: RAZORPAY_SECRET ? 'SET' : 'MISSING',
-    });
     return {
       success: false,
       error: "Payment gateway not configured. Please contact support.",
@@ -134,16 +122,9 @@ export async function createRazorpayOrder(
   try {
     const Razorpay = require("razorpay");
     
-    console.log('🔵 [createRazorpayOrder] Initializing Razorpay instance...');
     const razorpayInstance = new Razorpay({
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_SECRET,
-    });
-
-    console.log('🔵 [createRazorpayOrder] Creating Razorpay order:', {
-      amount: Math.round(order.totalAmount * 100),
-      currency: 'INR',
-      receipt: order.orderNumber,
     });
 
     const razorpayOrder = await razorpayInstance.orders.create({
@@ -157,23 +138,12 @@ export async function createRazorpayOrder(
       },
     });
 
-    console.log('✅ [createRazorpayOrder] Razorpay order created:', {
-      razorpayOrderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-    });
-
     // Update payment record with Razorpay order ID
     payment.gatewayTransactionId = razorpayOrder.id;
     await payment.save();
 
     return { success: true, razorpayOrder, payment };
   } catch (error: any) {
-    console.error('❌ [createRazorpayOrder] Razorpay order creation failed:', {
-      error: error.message,
-      stack: error.stack,
-      statusCode: error.statusCode,
-      description: error.error?.description,
-    });
     return {
       success: false,
       error: "Failed to initialize payment. Please try again.",
@@ -206,12 +176,6 @@ export async function processSuccessfulPayment(
   razorpayOrderId: string,
   razorpaySignature: string,
 ): Promise<{ success: boolean; order: any }> {
-  console.log('🟢 [processSuccessfulPayment] Starting payment update:', {
-    paymentId: payment.paymentId,
-    currentStatus: payment.status,
-    razorpayPaymentId,
-  });
-
   // Update payment status
   payment.status = "success";
   payment.gatewayPaymentId = razorpayPaymentId;
@@ -222,39 +186,22 @@ export async function processSuccessfulPayment(
   };
   payment.paidAt = new Date();
   
-  console.log('🟢 [processSuccessfulPayment] Saving payment...');
   await payment.save();
-  console.log('✅ [processSuccessfulPayment] Payment saved successfully');
 
   // Update order status - fetch the full order document
   const orderId = payment.orderId._id || payment.orderId;
-  console.log('🟢 [processSuccessfulPayment] Fetching order:', orderId);
   
   const order = await Order.findById(orderId);
   
   if (!order) {
-    console.log('❌ [processSuccessfulPayment] Order not found:', orderId);
     return { success: false, order: null };
   }
-
-  console.log('🟢 [processSuccessfulPayment] Order found:', {
-    orderNumber: order.orderNumber,
-    currentOrderStatus: order.orderStatus,
-    currentPaymentStatus: order.paymentStatus,
-  });
 
   order.paymentStatus = "paid";
   // Don't change orderStatus - it should remain "pending" until admin confirms
   order.expectedDeliveryDate = calculateExpectedDeliveryDate();
   
-  console.log('🟢 [processSuccessfulPayment] Saving order with new status...');
   await order.save();
-  
-  console.log('✅ [processSuccessfulPayment] Order saved successfully:', {
-    orderNumber: order.orderNumber,
-    orderStatus: order.orderStatus,
-    paymentStatus: order.paymentStatus,
-  });
 
   return { success: true, order };
 }

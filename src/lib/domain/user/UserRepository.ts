@@ -65,9 +65,11 @@ export class UserRepository implements IUserRepository {
     return await wishlistService.getWishlistCount(userId);
   }
 
-  // Get order count
+  // Get order count (using same filters as getOrders)
   async getOrderCount(userId: string): Promise<number> {
-    const result = await orderService.getOrders(userId, 1, 1);
+    // Pass undefined for status and orderNumber to get all orders with default filters
+    // This ensures the count matches the filters in OrderRepository.findByUserId
+    const result = await orderService.getOrders(userId, 1, 1, undefined, undefined);
     return result.pagination?.totalItems || 0;
   }
 

@@ -141,12 +141,6 @@ export default function ProductRail({ products }: ProductRailProps) {
             className="min-w-42 max-w-42 snap-start cursor-pointer animate-[slideIn_0.5s_ease-out_forwards] opacity-0"
             style={{ animationDelay: `${idx * 100}ms` }}
             onClick={() => {
-              console.log("🔍 Product clicked:", { 
-                _id: product._id, 
-                name: product.name,
-                slug: product.slug,
-                fullProduct: product 
-              });
               navigate.push(`/products/${product.slug || 'undefined'}-${product._id}`);
             }}
           >

@@ -464,13 +464,6 @@ async function fetchProducts(
 
   const products = productsResult.products || [];
 
-  console.log("🔵 [fetchProducts] First product:", products[0] ? {
-    _id: products[0]._id,
-    name: products[0].name,
-    slug: products[0].slug,
-    hasSlug: !!products[0].slug
-  } : "No products");
-
   await saveConversationState(conversationId, {
     lastProducts: products.map((p: any) => ({
       _id: p._id,
