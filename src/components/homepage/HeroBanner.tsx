@@ -116,7 +116,7 @@ const HeroBanner = () => {
       `}</style>
 
       <section
-        className="relative w-full h-[82vh] min-h-[560px] overflow-hidden bg-neutral-900 select-none"
+        className="relative w-full h-[45vh] md:h-[82vh] min-h-[400px] md:min-h-[560px] overflow-hidden bg-neutral-900 select-none"
         onMouseEnter={stopAuto}
         onMouseLeave={startAuto}
         onTouchStart={onStart}
