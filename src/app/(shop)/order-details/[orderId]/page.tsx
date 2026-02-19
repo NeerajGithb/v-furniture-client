@@ -88,7 +88,7 @@ export default function OrderDetailsPage({
       icon={AlertCircle}
     >
       <PageLayout className="min-h-screen bg-gray-50 dark:bg-[#0f1419] py-8 px-4">
-        <div className="w-full max-w-7xl mx-auto space-y-6">
+        <div className="w-full  mx-auto space-y-6">
           <StatusHeader
             status={status}
             orderNumber={orderNumber}

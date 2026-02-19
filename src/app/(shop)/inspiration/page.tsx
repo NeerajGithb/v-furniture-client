@@ -28,7 +28,7 @@ const InspirationPage = () => {
   if (isError) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <div className="min-h-screen flex items-center justify-center py-12">
             <div className="text-center max-w-lg mx-auto">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 sm:p-12">
@@ -57,7 +57,7 @@ const InspirationPage = () => {
     <div className="min-h-screen bg-white dark:bg-[#0f1419]">
       {/* Hero Section */}
       <section className="relative py-10 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-[#0f1419]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 dark:text-white mb-4">
             Room Inspirations
           </h1>
@@ -71,7 +71,7 @@ const InspirationPage = () => {
 
       {/* Inspirations Grid */}
       <section className="py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           {inspirations.length === 0 ? (
             <div className="text-center py-12">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">

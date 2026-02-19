@@ -47,7 +47,7 @@ const CategoryGrid = ({ categories, loading, error }: CategoryGridProps) => {
 
   if (error) {
     return (
-      <section className="px-3 max-w-7xl mx-auto">
+      <section className="px-3  mx-auto">
         <div className="mb-3">
           <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
             Categories
@@ -59,7 +59,7 @@ const CategoryGrid = ({ categories, loading, error }: CategoryGridProps) => {
   }
 
   return (
-    <section className="px-3 max-w-7xl mx-auto">
+    <section className="px-3  mx-auto">
       <div className="flex items-baseline justify-between mb-2">
         <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
           Popular Categories

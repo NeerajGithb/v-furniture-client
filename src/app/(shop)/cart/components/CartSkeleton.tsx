@@ -3,7 +3,7 @@
 export const CartSkeleton = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419]">
-      <div className="mx-auto px-4 py-4 sm:py-8 max-w-7xl">
+      <div className="mx-auto px-4 py-4 sm:py-8 ">
         <div className="animate-pulse">
           <div className="h-6 sm:h-8 bg-gray-300 dark:bg-gray-700 rounded w-1/2 sm:w-1/4 mb-4 sm:mb-6"></div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

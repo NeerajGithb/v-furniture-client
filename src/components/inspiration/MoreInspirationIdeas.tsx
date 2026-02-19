@@ -17,7 +17,7 @@ const MoreInspirationIdeas = ({
 
   if (loading) {
     return (
-      <section className="px-4 max-w-7xl mx-auto">
+      <section className="px-4  mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-light text-neutral-900 dark:text-white mb-2">
             More Inspiration Ideas
@@ -44,7 +44,7 @@ const MoreInspirationIdeas = ({
 
   if (error) {
     return (
-      <section className="px-4 max-w-7xl mx-auto pb-10">
+      <section className="px-4  mx-auto pb-10">
         <div className="text-center">
           <h2 className="text-3xl md:text-4xl font-light text-neutral-900 dark:text-white mb-2">
             More Inspiration Ideas
@@ -68,7 +68,7 @@ const MoreInspirationIdeas = ({
   }
 
   return (
-    <section className="px-4 max-w-7xl mx-auto pb-10">
+    <section className="px-4  mx-auto pb-10">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-light text-neutral-900 dark:text-white mb-2">
           More Inspiration Ideas

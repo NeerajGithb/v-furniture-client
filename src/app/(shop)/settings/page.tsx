@@ -66,7 +66,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 p-2 sm:p-4 max-w-7xl mx-auto">
+    <div className="space-y-6 p-2 sm:p-4  mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">

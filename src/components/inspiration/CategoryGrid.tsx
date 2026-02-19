@@ -75,7 +75,7 @@ const CategoryGrid = ({
 
   if (loading) {
     return (
-      <section className="px-4 py-8 max-w-6xl mx-auto">
+      <section className="px-4 py-8  mx-auto">
         <div className="text-center mb-6">
           <h2 className="text-xl md:text-2xl font-light text-black dark:text-white tracking-wide">
             Shop by Category
@@ -95,7 +95,7 @@ const CategoryGrid = ({
 
   if (error) {
     return (
-      <section className="px-4 py-8 max-w-6xl mx-auto">
+      <section className="px-4 py-8  mx-auto">
         <div className="text-center">
           <h2 className="text-xl md:text-2xl font-light text-black dark:text-white tracking-wide mb-4">
             Shop by Category
@@ -116,7 +116,7 @@ const CategoryGrid = ({
 
   if (!categories?.length) {
     return (
-      <section className="px-4 py-8 max-w-6xl mx-auto">
+      <section className="px-4 py-8  mx-auto">
         <div className="text-center">
           <h2 className="text-xl md:text-2xl font-light text-black dark:text-white tracking-wide mb-4">
             Shop by Category
@@ -130,7 +130,7 @@ const CategoryGrid = ({
   }
 
   return (
-    <section className="px-4 py-12 max-w-6xl mx-auto">
+    <section className="px-4 py-12  mx-auto">
       <div className="text-center mb-10">
         <h2 className="text-2xl md:text-3xl font-light text-black dark:text-white mb-2 tracking-wide">
           Shop by Category

@@ -98,7 +98,19 @@ export async function createRazorpayOrder(
   razorpayOrder?: any;
   payment?: any;
 }> {
+  console.log('🔵 [createRazorpayOrder] Environment check:', {
+    hasKeyId: !!RAZORPAY_KEY_ID,
+    hasSecret: !!RAZORPAY_SECRET,
+    keyIdLength: RAZORPAY_KEY_ID?.length || 0,
+    secretLength: RAZORPAY_SECRET?.length || 0,
+    nodeEnv: process.env.NODE_ENV,
+  });
+
   if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
+    console.error('❌ [createRazorpayOrder] Missing Razorpay credentials:', {
+      RAZORPAY_KEY_ID: RAZORPAY_KEY_ID ? 'SET' : 'MISSING',
+      RAZORPAY_SECRET: RAZORPAY_SECRET ? 'SET' : 'MISSING',
+    });
     return {
       success: false,
       error: "Payment gateway not configured. Please contact support.",
@@ -121,9 +133,17 @@ export async function createRazorpayOrder(
 
   try {
     const Razorpay = require("razorpay");
+    
+    console.log('🔵 [createRazorpayOrder] Initializing Razorpay instance...');
     const razorpayInstance = new Razorpay({
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_SECRET,
+    });
+
+    console.log('🔵 [createRazorpayOrder] Creating Razorpay order:', {
+      amount: Math.round(order.totalAmount * 100),
+      currency: 'INR',
+      receipt: order.orderNumber,
     });
 
     const razorpayOrder = await razorpayInstance.orders.create({
@@ -137,12 +157,23 @@ export async function createRazorpayOrder(
       },
     });
 
+    console.log('✅ [createRazorpayOrder] Razorpay order created:', {
+      razorpayOrderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+    });
+
     // Update payment record with Razorpay order ID
     payment.gatewayTransactionId = razorpayOrder.id;
     await payment.save();
 
     return { success: true, razorpayOrder, payment };
-  } catch (error) {
+  } catch (error: any) {
+    console.error('❌ [createRazorpayOrder] Razorpay order creation failed:', {
+      error: error.message,
+      stack: error.stack,
+      statusCode: error.statusCode,
+      description: error.error?.description,
+    });
     return {
       success: false,
       error: "Failed to initialize payment. Please try again.",

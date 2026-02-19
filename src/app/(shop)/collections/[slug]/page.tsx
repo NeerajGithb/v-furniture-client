@@ -167,7 +167,7 @@ const Page = () => {
         </div>
 
         {/* Related Products Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <RelatedProducts
             products={relatedProducts}
             loading={relatedLoading}
@@ -176,7 +176,7 @@ const Page = () => {
         </div>
 
         {/* New Arrivals Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <NewArrivals
             products={newArrivals}
             loading={arrivalsLoading}
@@ -185,7 +185,7 @@ const Page = () => {
         </div>
 
         {/* More Inspiration Ideas Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <MoreInspirationIdeas
             inspirations={allInspirations}
             loading={inspirationsLoading}

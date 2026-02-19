@@ -14,7 +14,7 @@ const RoomInspiration = ({
   if (loading) {
     return (
       <section className="bg-white dark:bg-[#0f1419] py-4 md:py-6">
-        <div className="px-3 max-w-7xl mx-auto">
+        <div className="px-3  mx-auto">
           <div className="text-center mb-4">
             <div className="h-5 bg-gray-100 dark:bg-gray-800 w-40 mx-auto mb-2 animate-pulse"></div>
             <div className="h-3 bg-gray-100 dark:bg-gray-800 w-56 mx-auto animate-pulse"></div>
@@ -91,7 +91,7 @@ const RoomInspiration = ({
       </motion.div>
 
       {/* Inspiration Grid */}
-      <div className="px-3 max-w-7xl mx-auto">
+      <div className="px-3  mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {inspirations
             .slice(0, 8)

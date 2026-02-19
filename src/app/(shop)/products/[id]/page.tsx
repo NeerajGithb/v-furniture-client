@@ -64,7 +64,7 @@ export default function SingleProductPage() {
   if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419] px-4 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           <div className="flex flex-col md:flex-row gap-8 animate-pulse">
             {/* Image Gallery Skeleton */}
             <div className="md:w-[40%]">

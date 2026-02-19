@@ -74,7 +74,7 @@ const ProfileForm = ({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1419]">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className=" mx-auto px-4 py-8">
         {error && <ErrorMessage message={error} onClose={clearError} />}
 
         {/* Header */}

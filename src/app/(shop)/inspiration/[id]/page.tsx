@@ -59,7 +59,7 @@ const InspirationDetailPage = () => {
 
     return (
       <div className="min-h-screen bg-white dark:bg-[#0f1419]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <div className="min-h-screen flex items-center justify-center">
             <div className="text-center max-w-md mx-auto">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-8 sm:p-12">
