@@ -63,7 +63,13 @@ export class OrderRepository implements IOrderRepository {
     userId: string,
     options: PaginationOptions,
   ): Promise<PaginatedResult<Order>> {
-    const query: any = { userId };
+    const query: any = { 
+      userId,
+      // Only return orders that have been placed (have orderNumber and orderStatus)
+      orderNumber: { $exists: true, $ne: null },
+      orderStatus: { $exists: true, $ne: null, $ne: "" }
+    };
+    
     if (options.status && options.status !== "all") {
       query.orderStatus = options.status;
     }
