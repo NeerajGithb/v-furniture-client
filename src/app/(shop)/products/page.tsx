@@ -10,13 +10,7 @@ import {
   useProductList 
 } from "@/components/shared";
 
-export const metadata = {
-  title: "All Furniture Products",
-  description:
-    "Shop our complete range of premium furniture. Filter by category, price, material and more. Free delivery available.",
-};
-
-const ProductsPage = () => {
+export default function ProductsPage() {
   const {
     products,
     totalProducts,
@@ -90,6 +84,4 @@ const ProductsPage = () => {
       </div>
     </ProductListLayout>
   );
-};
-
-export default ProductsPage;
+}

@@ -11,12 +11,6 @@ import {
   useProductList 
 } from "@/components/shared";
 
-export const metadata = {
-  title: "Search Furniture",
-  description: "Search our full range of premium furniture. Find sofas, beds, tables, chairs and more.",
-  robots: { index: false, follow: false },
-};
-
 const SearchPage: React.FC = () => {
   // Get search query from URL
   const searchParams = useSearchParams();
