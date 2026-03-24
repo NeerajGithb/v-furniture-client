@@ -15,7 +15,7 @@ Next.js 16 e-commerce storefront for VFurniture. Customers can browse products, 
 - **Cache** — Upstash Redis
 - **Payments** — Razorpay
 - **Real-time** — Pusher
-- **AI Chat** — Groq (Llama 3.3 70B) + Pinecone vector search
+- **AI Chat** — Groq (Llama 3.3 70B)
 - **Media** — Cloudinary
 - **Email** — Nodemailer
 
