@@ -6,6 +6,12 @@ import Loading from "@/components/ui/Loader";
 import { useInspirations } from "@/hooks/useHomeData";
 import type { IInspiration } from "@/types/Product";
 
+export const metadata = {
+  title: "Room Inspirations",
+  description:
+    "Discover curated room inspirations and complete furniture looks you can shop instantly. Get inspired for your living room, bedroom, dining room and more.",
+};
+
 const InspirationPage = () => {
   const {
     data: inspirations = [],
