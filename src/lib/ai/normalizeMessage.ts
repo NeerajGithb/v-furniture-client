@@ -15,7 +15,9 @@ export async function normalizeMessage(
   }
 
   const text = userMessage.trim();
-  const lowered = text.toLowerCase();
+  // Strip trailing punctuation before cache check — matches findExactMatch behaviour
+  // so "How many products are available?" hits "how many products are available" in the set
+  const lowered = text.toLowerCase().replace(/[?,!.;]+$/, "").trim();
 
   // ✅ EXACT MATCH CHECK - using centralized caching
   const exactPatterns = getCachedPatternsSet();

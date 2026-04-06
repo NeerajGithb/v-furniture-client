@@ -46,6 +46,11 @@ next-env.d.ts
 # Development scripts
 clear-redis-cache.js
 
+# Presentation files
+generate_ppt.py
+PRESENTATION_GUIDE.md
+*.pptx
+
 # IDE and editor files
 .vscode/
 .idea/

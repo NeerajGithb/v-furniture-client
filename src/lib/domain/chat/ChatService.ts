@@ -2,9 +2,10 @@ import { IChatRepository } from "./IChatRepository";
 import { ChatRepository } from "./ChatRepository";
 import { ChatMessageRequest } from "./ChatSchemas";
 import { randomUUID } from "crypto";
+import { matchRoomToInspiration } from "@/lib/ai/businessLogic";
 
 export class ChatService {
-  constructor(private repository: IChatRepository = new ChatRepository()) {}
+  constructor(private repository: IChatRepository = new ChatRepository()) { }
 
   async processMessage(data: ChatMessageRequest, authUser?: any) {
     const { message, history = [], conversationId: incomingConversationId } = data;
@@ -26,16 +27,60 @@ export class ChatService {
       history,
       state?.currentProduct,
     );
-
     let decision = await this.repository.makeDecision(
       state,
       understanding,
       state?.currentProduct,
       conversationId,
     );
+    console.log("understanding", understanding);
+    console.log("decision", decision);
+    // Room-type detection — override decision to browse inspiration
+    // Only trigger if message is clearly room-focused (no specific product category detected)
+    const inspirationSlug = matchRoomToInspiration(normalizedMessage);
+    const hasSpecificCategory = understanding.entities?.category || understanding.entities?.subcategory;
+    if (inspirationSlug && !hasSpecificCategory && decision.action !== "view_product" && decision.action !== "product_question") {
+      decision = {
+        ...decision,
+        action: "browse_inspiration",
+        actionType: "INSPIRATION",
+        shouldFetchProducts: true,
+        shouldRenderProducts: true,
+        shouldNavigate: false,
+        filters: { ...(decision.filters || {}), inspirationSlug },
+      };
+    }
+
+    // Use sort from understanding constraints (extracted by AI from prompt)
+    const sortIntent = understanding.constraints?.sort;
+    if (sortIntent && (decision.action === "browse_category" || decision.action === "browse_subcategory" || decision.action === "browse_all_products")) {
+      decision.filters = { ...(decision.filters || {}), sort: sortIntent };
+      decision.shouldFetchProducts = true;
+      decision.shouldRenderProducts = true;
+      decision.shouldNavigate = false;
+    }
+
+    // If AI returned CLARIFY/greeting but user gave a price constraint (e.g. "under 20k")
+    // and there's an active category in state, inherit it and browse with the filter
+    const hasConstraint = understanding.constraints?.price_max != null || understanding.constraints?.price_min != null;
+    const isUnresolved = decision.action === "clarify" || decision.action === "greeting";
+    if (hasConstraint && isUnresolved && state?.activeCategory) {
+      decision = {
+        ...decision,
+        action: state.activeSubcategory ? "browse_subcategory" : "browse_category",
+        actionType: state.activeSubcategory ? "SUBCATEGORY" : "CATEGORY",
+        category: state.activeCategory,
+        subcategory: state.activeSubcategory || null,
+        shouldFetchProducts: true,
+        shouldRenderProducts: true,
+        shouldNavigate: false,
+        filters: { ...(decision.filters || {}), ...understanding.constraints },
+      };
+    }
 
     const isAuthenticated = !!authUser;
-    if (this.requiresAuthentication(decision.action, decision) && !isAuthenticated) {
+
+    if (!isAuthenticated && this.requiresAuthentication(decision.action, decision)) {
       const authResponse = this.getAuthMessageForAction(decision.action, detectedLanguage);
 
       return {
@@ -84,8 +129,8 @@ export class ChatService {
     }
 
     const activeProduct =
-      decision.action === "view_product" && businessData?.product
-        ? businessData.product
+      decision.action === "view_product" && (businessData?.product || businessData?.products?.[0])
+        ? (businessData.product || businessData.products?.[0])
         : state?.currentProduct;
 
     const aiResponse = await this.repository.generateResponse(
@@ -158,11 +203,9 @@ export class ChatService {
       "add_to_cart",
       "remove_from_cart",
       "clear_cart",
-      "view_cart",
       "add_to_wishlist",
       "remove_from_wishlist",
       "clear_wishlist",
-      "view_wishlist",
       "checkout",
       "place_order",
       "view_orders",
@@ -248,6 +291,7 @@ export class ChatService {
       decision.action === "provide_count" ||
       decision.action === "check_availability" ||
       decision.action === "browse_all_categories" ||
+      decision.action === "browse_inspiration" ||
       decision.action === "view_product"
     ) {
       return true;
@@ -262,11 +306,11 @@ export class ChatService {
         return "/categories";
       case "browse_category":
         return decision.category
-          ? `/search?q=${encodeURIComponent(decision.category)}`
+          ? `/search?q=${encodeURIComponent(decision.category)}${decision.filters?.sort && decision.filters.sort !== "newest" ? `&sort=${decision.filters.sort}` : ""}${decision.filters?.price_max ? `&maxPrice=${decision.filters.price_max}` : ""}${decision.filters?.price_min ? `&minPrice=${decision.filters.price_min}` : ""}`
           : "/products";
       case "browse_subcategory":
         return decision.subcategory
-          ? `/search?q=${encodeURIComponent(decision.subcategory)}`
+          ? `/search?q=${encodeURIComponent(decision.subcategory)}${decision.filters?.sort && decision.filters.sort !== "newest" ? `&sort=${decision.filters.sort}` : ""}${decision.filters?.price_max ? `&maxPrice=${decision.filters.price_max}` : ""}${decision.filters?.price_min ? `&minPrice=${decision.filters.price_min}` : ""}`
           : decision.category
             ? `/search?q=${encodeURIComponent(decision.category)}`
             : "/products";
@@ -281,7 +325,7 @@ export class ChatService {
       case "view_wishlist":
         return "/wishlist";
       case "view_orders":
-        return "/profile/orders";
+        return "/orders";
       case "view_profile":
         return "/profile";
       case "checkout":
@@ -305,6 +349,11 @@ export class ChatService {
 
     if (businessData.products?.length) {
       responsePayload.products = businessData.products;
+    }
+
+    if (businessData.inspirationSlug) {
+      responsePayload.inspirationSlug = businessData.inspirationSlug;
+      responsePayload.inspirationTitle = businessData.inspirationTitle;
     }
 
     if (businessData.categories?.length) {

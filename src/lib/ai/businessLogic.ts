@@ -7,6 +7,35 @@ import { wishlistService } from "@/lib/domain/wishlist/WishlistService";
 import { orderService } from "@/lib/domain/orders/OrderService";
 import { productsService } from "@/lib/domain/products/ProductsService";
 import { categoriesService } from "@/lib/domain/categories/CategoriesService";
+import { inspirationsService } from "@/lib/domain/inspirations/InspirationsService";
+
+// Map room-type keywords to inspiration slugs
+const ROOM_TO_INSPIRATION: Record<string, string> = {
+  "living room": "living-room",
+  "living": "living-room",
+  "bedroom": "bedroom-inspiration",
+  "bed room": "bedroom-inspiration",
+  "dining room": "dining-inspiration",
+  "dining": "dining-inspiration",
+  "storage": "storage-inspiration",
+  "outdoor": "outdoor-inspiration",
+  "garden": "outdoor-inspiration",
+  "balcony": "outdoor-inspiration",
+  "office": "office-inspiration",
+  "home office": "office-inspiration",
+  "study": "study-room",
+  "study room": "study-room",
+  "guest room": "guest-room",
+  "guest": "guest-room",
+};
+
+export function matchRoomToInspiration(text: string): string | null {
+  const lower = text.toLowerCase();
+  for (const [keyword, slug] of Object.entries(ROOM_TO_INSPIRATION)) {
+    if (lower.includes(keyword)) return slug;
+  }
+  return null;
+}
 
 interface BusinessLogicParams {
   action: string;
@@ -47,6 +76,9 @@ export async function executeBusinessLogic(
 
     case "browse_all_categories":
       return fetchCategories(conversationId);
+
+    case "browse_inspiration":
+      return fetchInspirationProducts(conversationId, params);
 
     case "browse_category":
     case "browse_subcategory":
@@ -250,6 +282,7 @@ async function checkAvailability(
     limit: 20,
     sort: "newest",
     productsPerCategory: 10,
+    inStock: true,
   });
 
   const products = productsResult.products || [];
@@ -452,14 +485,38 @@ async function fetchProducts(
   conversationId: string,
   params: BusinessLogicParams,
 ) {
+  // Map AI constraint keys (price_min/price_max) to service keys (minPrice/maxPrice)
+  // Also normalize material keywords (e.g. "wooden" → "wood", "metallic" → "metal")
+  const filters = params.filters || {};
+  const mappedFilters: Record<string, any> = {};
+  if (filters.price_min != null) mappedFilters.minPrice = filters.price_min;
+  if (filters.price_max != null) mappedFilters.maxPrice = filters.price_max;
+  if (filters.material != null) {
+    const mat: string = filters.material.toLowerCase().trim();
+    // Normalize common adjective forms to base material keywords
+    const materialNormMap: Record<string, string> = {
+      wooden: "wood",
+      metallic: "metal",
+      leathery: "leather",
+      fabric: "fabric",
+      plastic: "plastic",
+      glass: "glass",
+      marble: "marble",
+    };
+    mappedFilters.material = materialNormMap[mat] || mat;
+  }
+  if (filters.color != null) mappedFilters.color = filters.color;
+  if (filters.size != null) mappedFilters.size = filters.size;
+
   const productsResult = await productsService.getProducts({
     category: params.category || undefined,
     subcategory: params.subcategory || undefined,
     page: 1,
     limit: 20,
-    sort: "newest",
+    sort: (filters.sort as any) || "newest",
     productsPerCategory: 10,
-    ...params.filters,
+    inStock: true,
+    ...mappedFilters,
   });
 
   const products = productsResult.products || [];
@@ -610,4 +667,51 @@ async function fetchOrders(conversationId: string, userId?: string | null) {
     count: totalOrders,
     orders,
   };
+}
+
+async function fetchInspirationProducts(
+  conversationId: string,
+  params: BusinessLogicParams,
+) {
+  const slug = params.filters?.inspirationSlug;
+  if (!slug) return null;
+
+  try {
+    const result = await inspirationsService.getInspirations({
+      relatedProducts: true,
+      slug,
+      limit: 20,
+      page: 1,
+    });
+
+    const products = result.products || [];
+
+    await saveConversationState(conversationId, {
+      lastProducts: products.map((p: any) => ({
+        _id: p._id,
+        name: p.name,
+        slug: p.slug,
+        finalPrice: p.finalPrice,
+        originalPrice: p.originalPrice,
+        discountPercent: p.discountPercent,
+        mainImage: p.mainImage,
+        reviews: p.reviews,
+        inStockQuantity: p.inStockQuantity,
+        material: p.material,
+        dimensions: p.dimensions,
+        isNewArrival: p.isNewArrival,
+        isBestSeller: p.isBestSeller,
+      })),
+      lastAction: "BROWSE_INSPIRATION",
+    });
+
+    return {
+      products,
+      count: products.length,
+      inspirationSlug: slug,
+      inspirationTitle: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+    };
+  } catch {
+    return null;
+  }
 }

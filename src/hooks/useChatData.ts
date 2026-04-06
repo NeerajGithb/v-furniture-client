@@ -1,10 +1,11 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { chatService } from "@/services/chatService";
 import { useChatStore, Message } from "@/stores/chatStore";
 import { ChatHistoryItem } from "@/types/chat";
 import { executeChatAction } from "@/lib/ai/chatActionExecutor";
 import { navigationTracker } from "@/lib/ai/utils/navigationTracker";
+import { useAuthStore } from "@/stores/authStore";
 
 interface SendMessageRequest {
   message: string;
@@ -39,6 +40,7 @@ export const useSendMessage = () => {
 // Main chat operations hook
 export const useChatOperations = () => {
   const sendMessageMutation = useSendMessage();
+  const queryClient = useQueryClient();
   const {
     messages,
     isLoading,
@@ -51,14 +53,10 @@ export const useChatOperations = () => {
 
   const sendMessage = async (text: string, router: any) => {
     const trimmed = text.trim();
+    if (!trimmed) return;
+    if (isLoading) return;
 
-    if (!trimmed) {
-      return;
-    }
-
-    if (isLoading) {
-      return;
-    }
+    const { openAuthModal } = useAuthStore.getState();
 
     // Add user message to UI
     addMessage({
@@ -99,19 +97,56 @@ export const useChatOperations = () => {
         setConversationId(data.conversationId);
       }
 
-      // RENDER PRODUCTS INLINE (No navigation)
-      if (shouldRenderProducts && products && products.length > 0) {
+      // Server-side auth required (caught before action execution)
+      if (data.requiresAuth) {
+        openAuthModal();
         addMessage({
           role: "assistant",
-          content: aiResponse || data.message || "Here are the products",
-          products: products,
-          categories: categories,
-          shouldRenderProducts: true,
-          actionPerformed: decision?.action || null,
-          navigationUrl: null,
-          structuredData: structuredData || null,
-          navigation: navigation || null,
+          content: aiResponse || "Please login to continue 🔐",
+          navigation: { type: "login_required", message: aiResponse || "Please login to continue 🔐" },
         });
+        return;
+      }
+
+      // RENDER PRODUCTS INLINE (No navigation)
+      if (shouldRenderProducts && products && products.length > 0) {
+        // Show "Opening {name}..." loading state first so user sees it before the card appears
+        if (decision?.action === "view_product" && productId) {
+          const openingProduct = products[0];
+          const openingName = openingProduct?.name || "product";
+          addMessage({
+            role: "assistant",
+            content: `Opening ${openingName}... 🛋️`,
+            actionPerformed: decision.action,
+            navigationUrl: null,
+            isLoading: true,
+          });
+          // Small delay so user can see the "Opening" state, then replace with full card
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          updateLastMessage({
+            content: aiResponse || `Opened ${openingName} ✓`,
+            products: products,
+            categories: categories,
+            shouldRenderProducts: true,
+            actionPerformed: decision.action,
+            navigationUrl: null,
+            isLoading: false,
+            structuredData: structuredData || null,
+            navigation: navigation || null,
+          });
+        } else {
+          addMessage({
+            role: "assistant",
+            content: aiResponse || data.message || "Here are the products",
+            products: products,
+            categories: categories,
+            shouldRenderProducts: true,
+            actionPerformed: decision?.action || null,
+            navigationUrl: null,
+            structuredData: structuredData || null,
+            navigation: navigation || null,
+          });
+        }
 
         return;
       }
@@ -127,6 +162,7 @@ export const useChatOperations = () => {
             subcategory,
             filters: decision.filters || {},
             router,
+            navigateTo: data.navigateTo || undefined,
           },
           isAuthenticated,
           (loadingMsg) => {
@@ -142,6 +178,7 @@ export const useChatOperations = () => {
         );
 
         if (actionResult.requiresAuth) {
+          openAuthModal();
           addMessage({
             role: "assistant",
             content: actionResult.message,
@@ -163,6 +200,23 @@ export const useChatOperations = () => {
 
         // If navigation happened, wait for actual page load then REPLACE message
         if (actionResult.navigationUrl) {
+          // Invalidate counts even on navigation (e.g. add_to_cart then navigate)
+          const countsActions = ["add_to_cart", "remove_from_cart", "clear_cart", "add_to_wishlist", "remove_from_wishlist", "clear_wishlist"];
+          if (countsActions.includes(decision.action)) {
+            queryClient.invalidateQueries({ queryKey: ["user-counts"] });
+          }
+
+          // For back navigation we can't track destination — update immediately
+          if (actionResult.navigationUrl === "back") {
+            updateLastMessage({
+              content: aiResponse || data.message,
+              actionPerformed: decision.action,
+              navigationUrl: null,
+              isLoading: false,
+            });
+            return;
+          }
+
           navigationTracker.onNavigationComplete(
             actionResult.navigationUrl,
             () => {
@@ -175,6 +229,12 @@ export const useChatOperations = () => {
             },
           );
           return;
+        }
+
+        // Invalidate cart/wishlist count after successful non-navigation action
+        const countsActions = ["add_to_cart", "remove_from_cart", "clear_cart", "add_to_wishlist", "remove_from_wishlist", "clear_wishlist"];
+        if (countsActions.includes(decision.action)) {
+          queryClient.invalidateQueries({ queryKey: ["user-counts"] });
         }
 
         // No navigation - show final message immediately

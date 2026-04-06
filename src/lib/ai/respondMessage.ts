@@ -8,6 +8,7 @@ import {
   getHelpResponse,
   getClarificationResponse,
   getNoResultsResponse,
+  getCountResponse,
 } from "./prompts/predefinedResponses";
 
 const KEY = process.env.GROQ_API_KEY_RESPOND;
@@ -41,7 +42,9 @@ export async function respondMessage(
   // Check for quick responses first (no Groq needed)
   const quickResp = getQuickResponse(
     action || "",
-    currentProduct,
+    action === "browse_inspiration"
+      ? { inspirationTitle: data?.inspirationTitle, title: data?.inspirationTitle }
+      : currentProduct,
     contextBuilt.source,
   );
 
@@ -88,13 +91,20 @@ export async function respondMessage(
       data.subcategory?.toLowerCase() ||
       "items";
     return {
-      finalResponse: getBrowsingResponse(contextBuilt.count, categoryName),
+      finalResponse: getBrowsingResponse(contextBuilt.count, categoryName, understanding.constraints),
     };
   }
 
   // Handle no results without Groq
   if (contextBuilt.count === 0 && contextBuilt.source !== "NONE") {
     return { finalResponse: getNoResultsResponse() };
+  }
+
+  // Handle provide_count directly — no Groq needed, give a clear specific message
+  if (action === "provide_count" && contextBuilt.source === "COUNT") {
+    const count = data?.count ?? contextBuilt.count ?? 0;
+    const entity = (data?.entityType || "PRODUCT").toUpperCase();
+    return { finalResponse: getCountResponse(count, entity) };
   }
 
   // Needs Groq for complex responses

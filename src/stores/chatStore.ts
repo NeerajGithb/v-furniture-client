@@ -183,7 +183,7 @@ export const useChatStore = create<ChatStore>()(
       },
 
       clearMessages: () => {
-        set({ messages: [] });
+        set({ messages: [], conversationId: crypto.randomUUID() });
       },
 
       setConversationId: (id: string) => {
@@ -194,7 +194,7 @@ export const useChatStore = create<ChatStore>()(
       name: "chat-storage",
       partialize: (state) => ({
         messages: state.messages.slice(-50), // Keep last 50 messages
-        conversationId: state.conversationId,
+        // conversationId is intentionally NOT persisted — fresh session on every page load
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

@@ -13,9 +13,16 @@ export async function saveConversationState(
     (await redis.get<ConversationState>(key)) ??
     createInitialConversationState();
 
+  // Deep merge counts instead of replacing
+  const mergedCounts =
+    partial.counts
+      ? { ...(existing.counts || {}), ...partial.counts }
+      : existing.counts;
+
   const next: ConversationState = {
     ...existing,
     ...partial,
+    counts: mergedCounts,
     updatedAt: Date.now(),
   };
 

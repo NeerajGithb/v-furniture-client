@@ -52,6 +52,20 @@ function buildSystemPrompt(context: PromptContext): string {
 
 Your job: Understand what the user wants and return valid JSON.
 
+⚠️ THIS IS A FURNITURE-ONLY STORE ⚠️
+You ONLY help with: sofas, beds, chairs, tables, wardrobes, desks, shelves, cabinets,
+home decor, and other furniture/home products.
+If the user asks about ANYTHING ELSE (flights, food, cars, phones, movies, sports,
+weather, medicine, finance, travel, etc.) → set coarse_intent to "OFF_TOPIC".
+Examples:
+- "show me flights" → OFF_TOPIC (flights are not furniture)
+- "book a hotel" → OFF_TOPIC
+- "best pizza near me" → OFF_TOPIC
+- "latest iphone" → OFF_TOPIC
+- "cricket score" → OFF_TOPIC
+- "show me sofas" → BROWSING (furniture ✓)
+- "wooden bed under 20k" → BROWSING (furniture ✓)
+
 ${contextInfo}
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -248,7 +262,26 @@ These are SYSTEM ACTIONS and MUST be ACTION.
    RULE: If user says specific product type (beds, sofas, chairs), DO extract category.
    RULE: Same input message = Same entity extraction (be deterministic)
 
-🧠 RULE #5: CLARIFY ONLY WHEN TRULY NEEDED
+🧠 RULE #5: PRICE INTENT WORDS → SORT CONSTRAINTS (CRITICAL)
+   When user says words like "cheapest", "budget", "affordable", "lowest price", "most expensive", "premium", "luxury", "highest price"
+   → Map them to sort constraints so products are ordered by price. Do NOT use price_max or price_min for these.
+
+   CHEAPEST / BUDGET / AFFORDABLE / LOWEST PRICE:
+   - Set constraints.sort to "price-low" (low to high)
+   - Example: "cheapest bed" → constraints: { sort: "price-low" }
+   - Example: "budget sofa" → constraints: { sort: "price-low" }
+   - Example: "affordable chair" → constraints: { sort: "price-low" }
+   - Example: "lowest price table" → constraints: { sort: "price-low" }
+
+   MOST EXPENSIVE / PREMIUM / LUXURY / HIGHEST PRICE:
+   - Set constraints.sort to "price-high" (high to low)
+   - Example: "most expensive bed" → constraints: { sort: "price-high" }
+   - Example: "premium sofa" → constraints: { sort: "price-high" }
+   - Example: "luxury chair" → constraints: { sort: "price-high" }
+
+   NEVER use price_max or price_min for these — always use sort.
+
+🧠 RULE #6: CLARIFY ONLY WHEN TRULY NEEDED
    Use CLARIFY sparingly, only when:
    - Message is ambiguous AND no context exists to clarify it
    - Cannot determine what user wants even with context
@@ -427,7 +460,7 @@ JSON OUTPUT STRUCTURE
 ═══════════════════════════════════════════════════════════════════════════════
 
 {
-  "coarse_intent": "SOCIAL|INFORMATION|BROWSING|ACTION|CONFIRMATION|CLARIFY|HELP|UNKNOWN",
+  "coarse_intent": "SOCIAL|INFORMATION|BROWSING|ACTION|CONFIRMATION|CLARIFY|HELP|UNKNOWN|OFF_TOPIC",
   "fine_intent": "SHOW_CATEGORIES|SHOW_SUBCATEGORIES|SHOW_PRODUCTS|VIEW_PRODUCT|PRODUCT_QUESTION|VIEW_PRODUCT_DETAILS|COUNT|SOCIAL|HELP|NEED_CLARIFICATION|UNKNOWN",
   "confidence": "high|medium|low",
   "whatUserWants": "clear single sentence describing user intent",
@@ -514,6 +547,11 @@ HELP - User asking for help or guidance
 
 UNKNOWN - Cannot determine (very rare)
 → Set: detail_level=null
+
+OFF_TOPIC - User is asking about something UNRELATED to furniture/home decor
+→ Examples: flights, food, cars, phones, movies, sports, weather, medicine, finance
+→ Set ALL entities and constraints to null
+→ Set: detail_level=null, action_type=null, info_type=null
 
 ═══════════════════════════════════════════════════════════════════════════════
 FIELD GUIDELINES

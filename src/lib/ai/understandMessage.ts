@@ -41,10 +41,6 @@ export async function understandMessage(
     return predefinedResult;
   }
 
-  if (currentProduct && isContextDependentQuestion(msg)) {
-    // Context-aware: Product context available, treating as INFORMATION
-  }
-
   const lastUnderstanding =
     history.length > 0 ? history[history.length - 1]?.understanding : undefined;
 
@@ -113,6 +109,7 @@ export async function understandMessage(
         material: sanitizeValue(parsed.constraints?.material),
         color: sanitizeValue(parsed.constraints?.color),
         size: sanitizeValue(parsed.constraints?.size),
+        sort: sanitizeValue(parsed.constraints?.sort),
       },
       confirmation: {
         is_yes: parsed.confirmation?.is_yes || false,
@@ -130,17 +127,6 @@ export async function understandMessage(
   } catch (error: any) {
     return createFallbackUnderstanding();
   }
-}
-
-function isContextDependentQuestion(msg: string): boolean {
-  const contextPatterns = [
-    /^(what|whats|what's|tell me).*\b(return|warranty|policy|guarantee|dimension|size|material|color|feature|price|cost|about|detail)/i,
-    /\b(this|that|it|the)\b/i,
-    /^(how much|what.*price|what.*cost)/i,
-    /^(is|does|can).*\b(this|it|that)\b/i,
-  ];
-
-  return contextPatterns.some((pattern) => pattern.test(msg));
 }
 
 function createFallbackUnderstanding(): UnderstandingResult {
@@ -165,6 +151,7 @@ function createFallbackUnderstanding(): UnderstandingResult {
       material: null,
       color: null,
       size: null,
+      sort: null,
     },
     confirmation: { is_yes: false, is_no: false },
     question_type: { is_question: false, expects_yes_no: false },

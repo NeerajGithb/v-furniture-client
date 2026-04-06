@@ -106,7 +106,8 @@ export interface UnderstandingResult {
     | "CONFIRMATION"
     | "UNKNOWN"
     | "CLARIFY"
-    | "HELP";
+    | "HELP"
+    | "OFF_TOPIC";
   whatUserWants: string;
   info_type: string | null;
   info_entity: string | null;
@@ -126,6 +127,7 @@ export interface UnderstandingResult {
     material: string | null;
     color: string | null;
     size: string | null;
+    sort: string | null;
   };
   confirmation: {
     is_yes: boolean;

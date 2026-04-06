@@ -482,7 +482,7 @@ export class ProductsRepository implements IProductsRepository {
       }
     }
 
-    // Material - match slug against available materials
+    // Material - match slug against available materials, or fallback to keyword regex
     if (filters.material) {
       // Get all available materials first
       const availableMaterials = await ProductModel.distinct("material", {
@@ -501,8 +501,9 @@ export class ProductsRepository implements IProductsRepository {
       if (matchingMaterial) {
         query.material = { $regex: matchingMaterial, $options: "i" };
       } else {
-        // If no exact match found, return query that matches nothing
-        query._id = { $in: [] };
+        // Fallback: treat the filter value as a keyword and do a partial regex match
+        // e.g. "wooden" will match "Sheesham Wood", "Engineered Wood", "Solid Wood Frame"
+        query.material = { $regex: filters.material, $options: "i" };
       }
     }
 

@@ -23,7 +23,10 @@ export function getQuickResponse(
 
   // View actions
   if (action === "browse_all_categories") return "Showing categories";
-  if (action === "browse_all_products") return "Showing all products";
+  if (action === "browse_all_products") return "Showing all products";  if (action === "browse_inspiration") {
+    const title = activeProduct?.inspirationTitle || activeProduct?.title || "this room";
+    return `Here are products for your ${title} 🏠`;
+  }
   if (action === "search") return "Search opened";
 
   // Filter/Sort actions
@@ -32,10 +35,13 @@ export function getQuickResponse(
   if (action === "sort_products") return "Products sorted";
 
   // Product selection from list
-  if (action === "view_product" && contextSource === "PRODUCT_SELECTED") {
+  // This message is shown AFTER the product is already rendered inline,
+  // so it must use past tense "Opened" — the "Opening..." loading state
+  // is handled separately via onLoadingMessage in chatActionExecutor.
+  if (action === "view_product") {
     return activeProduct?.name
-      ? `Opening ${activeProduct.name} 🛋️`
-      : "Opening product 🛋️";
+      ? `Opened ${activeProduct.name} ✓`
+      : "Product opened ✓";
   }
 
   // Product details view
@@ -78,20 +84,62 @@ export function getQuickResponse(
   // No-op actions
   if (action === "noop") return "Got it!";
 
+  // Off-topic — not a furniture query
+  if (action === "off_topic")
+    return "I'm a furniture shopping assistant 🛋️ I can only help with sofas, beds, chairs, tables, and home decor. What furniture are you looking for?";
+
   return null;
 }
 
 export function getBrowsingResponse(
   count: number,
   categoryName: string,
+  filters?: { price_max?: number | null; price_min?: number | null; material?: string | null; sort?: string | null },
 ): string {
   if (count === 0) {
-    return "No matches found. Try different keywords or browse our categories! 🔍";
+    return "Hmm, nothing matched that search 🔍 Try different keywords or browse our full collection!";
   }
+
+  // Smart pluralization — handles common furniture words correctly
+  const raw = categoryName.replace(/-/g, " ").trim();
+  function pluralize(word: string): string {
+    if (word.endsWith("s")) return word;            // already plural (e.g. "sofas")
+    if (word.endsWith("shelf")) return word.replace(/shelf$/, "shelves");
+    if (word.endsWith("fe")) return word.replace(/fe$/, "ves");
+    if (word.endsWith("f")) return word.replace(/f$/, "ves");
+    if (word.endsWith("ch") || word.endsWith("sh") || word.endsWith("x") || word.endsWith("z"))
+      return word + "es";
+    return word + "s";
+  }
+
+  const singular = raw;
+  const plural = pluralize(raw);
+
+  // Build filter context
+  let filterPhrase = "";
+  if (filters?.sort === "price-low") {
+    filterPhrase = ", sorted from lowest to highest price 📈";
+  } else if (filters?.sort === "price-high") {
+    filterPhrase = ", sorted from highest to lowest price 📉";
+  } else if (filters?.price_max && filters?.price_min) {
+    filterPhrase = ` between ₹${filters.price_min.toLocaleString()} and ₹${filters.price_max.toLocaleString()}`;
+  } else if (filters?.price_max) {
+    filterPhrase = ` under ₹${filters.price_max.toLocaleString()}`;
+  } else if (filters?.price_min) {
+    filterPhrase = ` above ₹${filters.price_min.toLocaleString()}`;
+  }
+  if (filters?.material) {
+    filterPhrase += ` in ${filters.material}`;
+  }
+
+  // Pick emoji based on count
+  const emoji = count >= 20 ? "🎉" : count >= 10 ? "✨" : "🛋️";
+
   if (count === 1) {
-    return `Found 1 ${categoryName}`;
+    return `Found 1 ${singular}${filterPhrase} — take a look! ${emoji}`;
   }
-  return `Found ${count} ${categoryName}`;
+
+  return `Here are ${count} ${plural}${filterPhrase} for you! ${emoji}`;
 }
 
 export function getGreetingResponse(): string {
@@ -107,5 +155,38 @@ export function getClarificationResponse(): string {
 }
 
 export function getNoResultsResponse(): string {
-  return "No matches found. Try different keywords or browse our categories! 🔍";
+  return "Hmm, nothing matched that search 🔍 Try different keywords or browse our full collection!";
+}
+
+export function getCountResponse(count: number, entity: string): string {
+  const emoji = count >= 50 ? "🎉" : count >= 20 ? "✨" : "🛋️";
+
+  switch (entity) {
+    case "PRODUCT":
+    case "PRODUCTS":
+      return `We have **${count} furniture products** in our store right now! ${emoji} Want to browse them?`;
+    case "CATEGORY":
+    case "CATEGORIES":
+      return `We have **${count} furniture categories** to explore! ${emoji} Want to browse them?`;
+    case "SUBCATEGORY":
+    case "SUBCATEGORIES":
+      return `There are **${count} subcategories** available! ${emoji}`;
+    case "CART":
+    case "CART_ITEM":
+      return count === 0
+        ? "Your cart is empty 🛒 Start adding some furniture!"
+        : `You have **${count} item${count === 1 ? "" : "s"}** in your cart 🛒`;
+    case "WISHLIST":
+    case "WISHLIST_ITEM":
+      return count === 0
+        ? "Your wishlist is empty ❤️ Save items you love!"
+        : `You have **${count} item${count === 1 ? "" : "s"}** in your wishlist ❤️`;
+    case "ORDER":
+    case "ORDERS":
+      return count === 0
+        ? "You haven't placed any orders yet 📦"
+        : `You have **${count} order${count === 1 ? "" : "s"}** 📦`;
+    default:
+      return `Found **${count}** results ${emoji}`;
+  }
 }

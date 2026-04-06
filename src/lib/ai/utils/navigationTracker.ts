@@ -49,9 +49,6 @@ class NavigationTracker {
     window.addEventListener("popstate", () => {
       setTimeout(checkUrlChange, 50);
     });
-
-    // Fallback: poll every 100ms
-    setInterval(checkUrlChange, 100);
   }
 
   private triggerCallbacks(url: string) {

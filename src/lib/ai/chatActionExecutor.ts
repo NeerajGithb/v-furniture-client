@@ -103,6 +103,7 @@ export async function executeChatAction(
     filters?: any;
     quantity?: number;
     router?: AppRouterInstance;
+    navigateTo?: string;
   },
   isAuthenticated: boolean = false,
   onLoadingMessage?: (msg: string) => void,
@@ -113,10 +114,8 @@ export async function executeChatAction(
     "remove_from_cart",
     "clear_cart",
     "clear_wishlist",
-    "view_cart",
     "add_to_wishlist",
     "remove_from_wishlist",
-    "view_wishlist",
     "checkout",
     "place_order",
     "view_orders",
@@ -281,21 +280,27 @@ export async function executeChatAction(
 
       // ========== BROWSING ACTIONS ==========
       case "browse_category": {
-        const url = buildSearchUrl(params);
+        const url = params.navigateTo || buildSearchUrl(params);
+        const label = params.category ? params.category.replace(/-/g, " ") : "category";
         return navigation(
           params.router,
           url,
-          "Loading category... 📂",
+          `Loading ${label}... 📂`,
           onLoadingMessage,
         );
       }
 
       case "browse_subcategory": {
-        const url = buildSearchUrl(params);
+        const url = params.navigateTo || buildSearchUrl(params);
+        const label = params.subcategory
+          ? params.subcategory.replace(/-/g, " ")
+          : params.category
+          ? params.category.replace(/-/g, " ")
+          : "subcategory";
         return navigation(
           params.router,
           url,
-          "Loading subcategory... 📂",
+          `Loading ${label}... 📂`,
           onLoadingMessage,
         );
       }
@@ -376,7 +381,7 @@ export async function executeChatAction(
       case "track_order": {
         return navigation(
           params.router,
-          "/orders",
+          "/orders/track",
           "Loading order tracking... 📦",
           onLoadingMessage,
         );
@@ -399,7 +404,7 @@ export async function executeChatAction(
       case "login": {
         return navigation(
           params.router,
-          "/login",
+          "/auth/login",
           "Opening login... 🔐",
           onLoadingMessage,
         );
@@ -416,7 +421,7 @@ export async function executeChatAction(
       case "signup": {
         return navigation(
           params.router,
-          "/signup",
+          "/auth/signin",
           "Opening signup... 🔐",
           onLoadingMessage,
         );
@@ -492,7 +497,6 @@ export async function executeChatAction(
       success: false,
       message: error.message || "Failed to execute action",
     };
-  } finally {
   }
 }
 

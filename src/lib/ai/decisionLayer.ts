@@ -54,6 +54,17 @@ export async function makeDecision(
     detailLevel: understanding.detail_level || null,
   };
 
+  // ========== OFF_TOPIC ==========
+  if (understanding.coarse_intent === "OFF_TOPIC") {
+    decision.action = "off_topic";
+    decision.actionType = "OFF_TOPIC";
+    decision.shouldFetchProducts = false;
+    decision.shouldRenderProducts = false;
+    decision.shouldNavigate = false;
+    decision.shouldFetchStats = false;
+    return decision;
+  }
+
   // ========== HELP ==========
   if (understanding.coarse_intent === "HELP") {
     decision.action = "help";
@@ -129,6 +140,16 @@ export async function makeDecision(
   if (understanding.coarse_intent === "INFORMATION") {
     const infoType = normalizedInfoType;
     const infoEntity = normalizedInfoEntity;
+
+    // ── fine_intent takes priority over info_type ──────────────────────────
+    // When the AI returns inconsistent fields (e.g. fine_intent: COUNT but
+    // info_type: AVAILABILITY), trust the explicit fine_intent classification.
+    if (canonicalIntent === "COUNT") {
+      decision.action = "provide_count";
+      decision.actionType = infoEntity || "PRODUCT";
+      decision.shouldFetchStats = true;
+      return decision;
+    }
 
     // Handle CLEAR operations
     if (infoType === "CLEAR") {
@@ -246,10 +267,16 @@ export async function makeDecision(
 
   // ========== BROWSING ==========
   if (understanding.coarse_intent === "BROWSING") {
+    // Inherit active category from state if not explicitly mentioned
+    if (!decision.category && state?.activeCategory) {
+      decision.category = state.activeCategory;
+      decision.subcategory = decision.subcategory || state.activeSubcategory || null;
+    }
+
     if (decision.category) {
       decision.shouldFetchProducts = true;
       decision.shouldNavigate = state?.lastProducts?.length > 0;
-      if (decision.subcategory || state.activeSubcategory) {
+      if (decision.subcategory || state?.activeSubcategory) {
         decision.action = "browse_subcategory";
         decision.actionType = "SUBCATEGORY";
         decision.shouldRenderProducts = true;
@@ -374,6 +401,17 @@ export async function makeDecision(
 
     if (actionMap[actionType]) {
       Object.assign(decision, actionMap[actionType]);
+
+      // Inherit active category from state for filter/sort actions
+      if (
+        (actionType === "APPLY_FILTER" || actionType === "CLEAR_FILTERS" || actionType === "SORT_PRODUCTS") &&
+        !decision.category &&
+        state?.activeCategory
+      ) {
+        decision.category = state.activeCategory;
+        decision.subcategory = decision.subcategory || state.activeSubcategory || null;
+      }
+
       return decision;
     }
 
