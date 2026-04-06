@@ -25,6 +25,7 @@ export class ProductsRepository implements IProductsRepository {
         { status: { $exists: false } } // Handle products without status field
       ],
       isPublished: true,
+      inStockQuantity: { $gt: 0 },
     })
       .populate("categoryId", "_id name slug")
       .populate("subCategoryId", "_id name slug")
@@ -65,6 +66,7 @@ export class ProductsRepository implements IProductsRepository {
         { status: { $exists: false } } // Handle products without status field
       ],
       isPublished: true,
+      inStockQuantity: { $gt: 0 },
     })
       .populate("categoryId", "_id name slug")
       .populate("subCategoryId", "_id name slug")
@@ -131,6 +133,7 @@ export class ProductsRepository implements IProductsRepository {
     const products = await ProductModel.find({
       isPublished: { $ne: false },
       status: "APPROVED",
+      inStockQuantity: { $gt: 0 },
       $or: [
         { isBestSeller: true },
         { isNewArrival: true },
@@ -158,6 +161,7 @@ export class ProductsRepository implements IProductsRepository {
       categoryId,
       isPublished: { $ne: false },
       status: "APPROVED",
+      inStockQuantity: { $gt: 0 },
       $or: [
         { isBestSeller: true },
         { isNewArrival: true },
@@ -200,6 +204,7 @@ export class ProductsRepository implements IProductsRepository {
     return await ProductModel.countDocuments({
       isPublished: { $ne: false },
       status: "APPROVED",
+      inStockQuantity: { $gt: 0 },
     });
   }
 
@@ -318,9 +323,10 @@ export class ProductsRepository implements IProductsRepository {
         material: { $nin: [null, "", undefined] },
         isPublished: { $ne: false },
         status: "APPROVED",
+        inStockQuantity: { $gt: 0 },
       }),
       ProductModel.aggregate([
-        { $match: { isPublished: { $ne: false }, status: "APPROVED" } },
+        { $match: { isPublished: { $ne: false }, status: "APPROVED", inStockQuantity: { $gt: 0 } } },
         {
           $group: {
             _id: null,
@@ -444,7 +450,8 @@ export class ProductsRepository implements IProductsRepository {
           status: { $exists: false },
           isPublished: { $exists: false }
         }
-      ]
+      ],
+      inStockQuantity: { $gt: 0 }
     };
 
     // Price range
@@ -489,6 +496,7 @@ export class ProductsRepository implements IProductsRepository {
         material: { $nin: [null, "", undefined] },
         isPublished: { $ne: false },
         status: "APPROVED",
+        inStockQuantity: { $gt: 0 },
       });
       
       // Find the material that matches the slug

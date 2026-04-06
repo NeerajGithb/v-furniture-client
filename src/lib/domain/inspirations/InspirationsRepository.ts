@@ -95,6 +95,7 @@ export class InspirationsRepository implements IInspirationsRepository {
               categoryId,
               isPublished: { $ne: false },
               status: "APPROVED",
+              inStockQuantity: { $gt: 0 },
             })
               .populate("categoryId", "_id name slug")
               .populate("subCategoryId", "_id name slug")
@@ -109,6 +110,7 @@ export class InspirationsRepository implements IInspirationsRepository {
                 categoryId,
                 isPublished: { $ne: false },
                 status: "APPROVED",
+                inStockQuantity: { $gt: 0 },
               },
             },
             { $sample: { size: perCategoryLimit } },
@@ -129,6 +131,7 @@ export class InspirationsRepository implements IInspirationsRepository {
           categoryId: (category as any)._id,
           isPublished: { $ne: false },
           status: "APPROVED",
+          inStockQuantity: { $gt: 0 },
         })
           .populate("categoryId", "_id name slug")
           .populate("subCategoryId", "_id name slug")
@@ -148,6 +151,7 @@ export class InspirationsRepository implements IInspirationsRepository {
           subCategoryId: (subcategory as any)._id,
           isPublished: { $ne: false },
           status: "APPROVED",
+          inStockQuantity: { $gt: 0 },
         })
           .populate("categoryId", "_id name slug")
           .populate("subCategoryId", "_id name slug")
@@ -166,6 +170,7 @@ export class InspirationsRepository implements IInspirationsRepository {
       products = await ProductModel.find({
         isPublished: { $ne: false },
         status: "APPROVED",
+        inStockQuantity: { $gt: 0 },
         $or: [
           { name: regex },
           { description: regex },
@@ -186,6 +191,7 @@ export class InspirationsRepository implements IInspirationsRepository {
       products = await ProductModel.find({
         isPublished: { $ne: false },
         status: "APPROVED",
+        inStockQuantity: { $gt: 0 },
       })
         .populate("categoryId", "_id name slug")
         .populate("subCategoryId", "_id name slug")

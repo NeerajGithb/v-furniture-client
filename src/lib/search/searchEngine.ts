@@ -37,6 +37,7 @@ export class SearchEngine {
           status: "APPROVED",
           isPublished: true,
           isActive: true,
+          inStockQuantity: { $gt: 0 },
         },
       };
 
@@ -268,6 +269,7 @@ export class SearchEngine {
             status: "APPROVED",
             isPublished: true,
             isActive: true,
+            inStockQuantity: { $gt: 0 },
           },
         };
 
