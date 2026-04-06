@@ -287,8 +287,11 @@ async function checkAvailability(
 
   const products = productsResult.products || [];
 
+  // Filter out out-of-stock products before saving to conversation state
+  const inStockProducts = products.filter((p: any) => p.inStockQuantity > 0);
+
   await saveConversationState(conversationId, {
-    lastProducts: products.map((p: any) => ({
+    lastProducts: inStockProducts.map((p: any) => ({
       _id: p._id,
       name: p.name,
       slug: p.slug,
@@ -310,10 +313,10 @@ async function checkAvailability(
 
   return {
     entityType: subcategory ? "SUBCATEGORY" : "CATEGORY",
-    count: products.length,
+    count: inStockProducts.length,
     category,
     subcategory,
-    products,
+    products: inStockProducts,
   };
 }
 
@@ -521,8 +524,11 @@ async function fetchProducts(
 
   const products = productsResult.products || [];
 
+  // Filter out out-of-stock products before saving to conversation state
+  const inStockProducts = products.filter((p: any) => p.inStockQuantity > 0);
+
   await saveConversationState(conversationId, {
-    lastProducts: products.map((p: any) => ({
+    lastProducts: inStockProducts.map((p: any) => ({
       _id: p._id,
       name: p.name,
       slug: p.slug,
@@ -543,8 +549,8 @@ async function fetchProducts(
   });
 
   return {
-    products: products.slice(0, 100),
-    count: products.length,
+    products: inStockProducts.slice(0, 100),
+    count: inStockProducts.length,
     category: params.category,
     subcategory: params.subcategory,
   };
@@ -686,8 +692,11 @@ async function fetchInspirationProducts(
 
     const products = result.products || [];
 
+    // Filter out out-of-stock products before saving to conversation state
+    const inStockProducts = products.filter((p: any) => p.inStockQuantity > 0);
+
     await saveConversationState(conversationId, {
-      lastProducts: products.map((p: any) => ({
+      lastProducts: inStockProducts.map((p: any) => ({
         _id: p._id,
         name: p.name,
         slug: p.slug,
@@ -706,8 +715,8 @@ async function fetchInspirationProducts(
     });
 
     return {
-      products,
-      count: products.length,
+      products: inStockProducts,
+      count: inStockProducts.length,
       inspirationSlug: slug,
       inspirationTitle: slug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
     };
