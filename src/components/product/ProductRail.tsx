@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Product } from "@/types/Product";
 import ProductCardCompact from "./ProductCardCompact";
 import { useNavigate } from "../NavigationLoader";
+import slugify from "slugify";
 
 interface ProductRailProps {
   products: Product[];

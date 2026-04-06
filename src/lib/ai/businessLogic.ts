@@ -29,6 +29,18 @@ const ROOM_TO_INSPIRATION: Record<string, string> = {
   "guest": "guest-room",
 };
 
+// Map inspiration slugs to category slugs for navigation
+const INSPIRATION_TO_CATEGORY: Record<string, string> = {
+  "bedroom-inspiration": "beds",
+  "living-room": "sofas",
+  "dining-inspiration": "dining-tables",
+  "storage-inspiration": "storage",
+  "outdoor-inspiration": "outdoor",
+  "office-inspiration": "office-furniture",
+  "study-room": "office-furniture",
+  "guest-room": "beds",
+};
+
 export function matchRoomToInspiration(text: string): string | null {
   const lower = text.toLowerCase();
   for (const [keyword, slug] of Object.entries(ROOM_TO_INSPIRATION)) {
