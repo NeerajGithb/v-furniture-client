@@ -18,6 +18,7 @@ export class ProductsRepository implements IProductsRepository {
   // Find product by ID
   async findById(id: string): Promise<Product> {
     // First try with full query (status and isPublished)
+    // NOTE: We don't filter by inStockQuantity here because users should see product details even if out of stock
     let product = await ProductModel.findOne({
       _id: id,
       $or: [
@@ -25,7 +26,6 @@ export class ProductsRepository implements IProductsRepository {
         { status: { $exists: false } } // Handle products without status field
       ],
       isPublished: true,
-      inStockQuantity: { $gt: 0 },
     })
       .populate("categoryId", "_id name slug")
       .populate("subCategoryId", "_id name slug")
@@ -59,6 +59,7 @@ export class ProductsRepository implements IProductsRepository {
   // Find product by slug
   async findBySlug(slug: string): Promise<Product> {
     // First try with full query (status and isPublished)
+    // NOTE: We don't filter by inStockQuantity here because users should see product details even if out of stock
     let product = await ProductModel.findOne({
       slug: slug,
       $or: [
@@ -66,7 +67,6 @@ export class ProductsRepository implements IProductsRepository {
         { status: { $exists: false } } // Handle products without status field
       ],
       isPublished: true,
-      inStockQuantity: { $gt: 0 },
     })
       .populate("categoryId", "_id name slug")
       .populate("subCategoryId", "_id name slug")
