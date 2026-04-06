@@ -49,6 +49,26 @@ export class ChatService {
         shouldNavigate: false,
         filters: { ...(decision.filters || {}), inspirationSlug },
       };
+      
+      // Map inspiration to category for "open now" context
+      const INSPIRATION_TO_CATEGORY: Record<string, string> = {
+        "bedroom-inspiration": "beds",
+        "living-room": "sofas",
+        "dining-inspiration": "dining-tables",
+        "storage-inspiration": "storage",
+        "outdoor-inspiration": "outdoor",
+        "office-inspiration": "office-furniture",
+        "study-room": "office-furniture",
+        "guest-room": "beds",
+      };
+      
+      const categorySlug = INSPIRATION_TO_CATEGORY[inspirationSlug] || null;
+      
+      // Save activeCategory immediately for "open now" to work
+      await this.repository.saveConversationState(conversationId, {
+        activeCategory: categorySlug,
+        activeSubcategory: null,
+      });
     }
 
     // Use sort from understanding constraints (extracted by AI from prompt)
@@ -60,8 +80,6 @@ export class ChatService {
       decision.shouldNavigate = false;
     }
 
-    // If AI returned CLARIFY/greeting but user gave a price constraint (e.g. "under 20k")
-    // and there's an active category in state, inherit it and browse with the filter
     const hasConstraint = understanding.constraints?.price_max != null || understanding.constraints?.price_min != null;
     const isUnresolved = decision.action === "clarify" || decision.action === "greeting";
     if (hasConstraint && isUnresolved && state?.activeCategory) {
@@ -169,7 +187,7 @@ export class ChatService {
       response: aiResponse.finalResponse,
       timestamp: Date.now(),
       shouldNavigate: decision.shouldNavigate,
-      shouldRenderProducts: isBrowsing || decision.shouldFetchProducts,
+      shouldRenderProducts: decision.shouldNavigate ? false : (isBrowsing || decision.shouldFetchProducts),
       navigateTo: null,
       category: decision.category,
       subcategory: decision.subcategory,

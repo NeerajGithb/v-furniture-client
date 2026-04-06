@@ -6,6 +6,7 @@ import { saveConversationState } from "./state/saveConversationState";
 import { resolveCanonicalIntent } from "./utils/resolveIntent";
 import { normalizeActionType, normalizeInfoType } from "./utils/normalizeTypes";
 import { normalizeInfoEntity } from "./utils/normalizeInfoEntity";
+import { matchRoomToInspiration } from "./businessLogic";
 
 export interface DecisionResult {
   action: string;
@@ -267,6 +268,22 @@ export async function makeDecision(
 
   // ========== BROWSING ==========
   if (understanding.coarse_intent === "BROWSING") {
+    // Handle room/inspiration browsing (e.g., "bedroom furniture")
+    if (understanding.action_type === "filterByRoom") {
+      const roomKeyword = understanding.whatUserWants?.toLowerCase() || "";
+      const inspirationSlug = matchRoomToInspiration(roomKeyword);
+      
+      if (inspirationSlug) {
+        decision.action = "browse_inspiration";
+        decision.actionType = "INSPIRATION";
+        decision.filters = { ...decision.filters, inspirationSlug };
+        decision.shouldFetchProducts = false;
+        decision.shouldNavigate = false;
+        decision.shouldRenderProducts = true;
+        return decision;
+      }
+    }
+
     // Inherit active category from state if not explicitly mentioned
     if (!decision.category && state?.activeCategory) {
       decision.category = state.activeCategory;
@@ -330,6 +347,7 @@ export async function makeDecision(
 
       if (state?.activeSubcategory) {
         decision.action = "browse_subcategory";
+        decision.actionType = "SUBCATEGORY";
         decision.category = state.activeCategory;
         decision.subcategory = state.activeSubcategory;
         decision.shouldFetchProducts = true;
@@ -339,6 +357,7 @@ export async function makeDecision(
 
       if (state?.activeCategory) {
         decision.action = "browse_category";
+        decision.actionType = "CATEGORY";
         decision.category = state.activeCategory;
         decision.shouldFetchProducts = true;
         decision.shouldNavigate = true;
