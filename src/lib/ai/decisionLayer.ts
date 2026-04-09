@@ -7,6 +7,7 @@ import { resolveCanonicalIntent } from "./utils/resolveIntent";
 import { normalizeActionType, normalizeInfoType } from "./utils/normalizeTypes";
 import { normalizeInfoEntity } from "./utils/normalizeInfoEntity";
 import { matchRoomToInspiration } from "./businessLogic";
+import { INSPIRATION_TO_CATEGORY } from "./constants/inspirationMappings";
 
 export interface DecisionResult {
   action: string;
@@ -280,6 +281,14 @@ export async function makeDecision(
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = false;
         decision.shouldRenderProducts = true;
+        
+        // Save activeCategory for "open now" to work
+        const categorySlug = INSPIRATION_TO_CATEGORY[inspirationSlug] || null;
+        await saveConversationState(conversationId, {
+          activeCategory: categorySlug,
+          activeSubcategory: null,
+        });
+        
         return decision;
       }
     }
@@ -340,6 +349,7 @@ export async function makeDecision(
     if (understanding.fine_intent === "open_context") {
       if (state?.currentProduct) {
         decision.action = "view_product";
+        decision.actionType = "PRODUCT";
         decision.shouldFetchProducts = false;
         decision.shouldNavigate = true;
         return decision;

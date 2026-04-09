@@ -2,99 +2,55 @@ import { IChatRepository } from "./IChatRepository";
 import { ChatRepository } from "./ChatRepository";
 import { ChatMessageRequest } from "./ChatSchemas";
 import { randomUUID } from "crypto";
-import { matchRoomToInspiration } from "@/lib/ai/businessLogic";
 
+/**
+ * ChatService - Main AI Chat Flow
+ * 
+ * Flow: User Message → Normalize → Understand → Decide → Execute → Respond
+ * 
+ * 1. NORMALIZE: Clean message, detect language
+ * 2. UNDERSTAND: Extract intent, category, filters using AI
+ * 3. DECIDE: Determine action (browse, navigate, fetch)
+ * 4. EXECUTE: Fetch data from database (products, cart, orders)
+ * 5. RESPOND: Generate AI response using Groq
+ * 
+ * Context Memory: Saves activeCategory, lastProducts for "open now" to work
+ */
 export class ChatService {
   constructor(private repository: IChatRepository = new ChatRepository()) { }
 
   async processMessage(data: ChatMessageRequest, authUser?: any) {
     const { message, history = [], conversationId: incomingConversationId } = data;
 
+    // Generate or use existing conversation ID
     const conversationId =
       typeof incomingConversationId === "string" && incomingConversationId.length > 0
         ? incomingConversationId
         : randomUUID();
 
+    // STEP 1: Load conversation context (previous category, products, etc.)
     const state = await this.repository.getConversationState(conversationId);
     const trimmedMessage = message.trim();
-
+    
+    // STEP 2: Normalize message (clean typos, detect language)
     const normalizeResult = await this.repository.normalizeMessage(trimmedMessage);
     const normalizedMessage = normalizeResult.normalized;
     const detectedLanguage = normalizeResult.language;
 
+    // STEP 3: Understand what user wants (intent, category, filters)
     const understanding = await this.repository.understandMessage(
       normalizedMessage,
       history,
       state?.currentProduct,
     );
+    
+    // STEP 4: Decide what action to take (browse, navigate, fetch data)
     let decision = await this.repository.makeDecision(
       state,
       understanding,
       state?.currentProduct,
       conversationId,
     );
-    console.log("understanding", understanding);
-    console.log("decision", decision);
-    // Room-type detection — override decision to browse inspiration
-    // Only trigger if message is clearly room-focused (no specific product category detected)
-    const inspirationSlug = matchRoomToInspiration(normalizedMessage);
-    const hasSpecificCategory = understanding.entities?.category || understanding.entities?.subcategory;
-    if (inspirationSlug && !hasSpecificCategory && decision.action !== "view_product" && decision.action !== "product_question") {
-      decision = {
-        ...decision,
-        action: "browse_inspiration",
-        actionType: "INSPIRATION",
-        shouldFetchProducts: true,
-        shouldRenderProducts: true,
-        shouldNavigate: false,
-        filters: { ...(decision.filters || {}), inspirationSlug },
-      };
-      
-      // Map inspiration to category for "open now" context
-      const INSPIRATION_TO_CATEGORY: Record<string, string> = {
-        "bedroom-inspiration": "beds",
-        "living-room": "sofas",
-        "dining-inspiration": "dining-tables",
-        "storage-inspiration": "storage",
-        "outdoor-inspiration": "outdoor",
-        "office-inspiration": "office-furniture",
-        "study-room": "office-furniture",
-        "guest-room": "beds",
-      };
-      
-      const categorySlug = INSPIRATION_TO_CATEGORY[inspirationSlug] || null;
-      
-      // Save activeCategory immediately for "open now" to work
-      await this.repository.saveConversationState(conversationId, {
-        activeCategory: categorySlug,
-        activeSubcategory: null,
-      });
-    }
-
-    // Use sort from understanding constraints (extracted by AI from prompt)
-    const sortIntent = understanding.constraints?.sort;
-    if (sortIntent && (decision.action === "browse_category" || decision.action === "browse_subcategory" || decision.action === "browse_all_products")) {
-      decision.filters = { ...(decision.filters || {}), sort: sortIntent };
-      decision.shouldFetchProducts = true;
-      decision.shouldRenderProducts = true;
-      decision.shouldNavigate = false;
-    }
-
-    const hasConstraint = understanding.constraints?.price_max != null || understanding.constraints?.price_min != null;
-    const isUnresolved = decision.action === "clarify" || decision.action === "greeting";
-    if (hasConstraint && isUnresolved && state?.activeCategory) {
-      decision = {
-        ...decision,
-        action: state.activeSubcategory ? "browse_subcategory" : "browse_category",
-        actionType: state.activeSubcategory ? "SUBCATEGORY" : "CATEGORY",
-        category: state.activeCategory,
-        subcategory: state.activeSubcategory || null,
-        shouldFetchProducts: true,
-        shouldRenderProducts: true,
-        shouldNavigate: false,
-        filters: { ...(decision.filters || {}), ...understanding.constraints },
-      };
-    }
 
     const isAuthenticated = !!authUser;
 

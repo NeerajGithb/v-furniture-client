@@ -39,24 +39,24 @@ const Footer = () => {
               />
 
               <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
-                Crafting exceptional furniture for discerning homes since 1985.
+                Your trusted partner for quality furniture that transforms houses into homes.
               </p>
 
               {/* Contact Info */}
               <div className="space-y-2 mb-4">
                 <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
                   <HiOutlineLocationMarker className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>123 Furniture Ave, NY 10001</span>
+                  <span>V Furnitures, India</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                   <HiOutlinePhone className="w-3.5 h-3.5 shrink-0" />
-                  <span>+1 (555) 123-4567</span>
+                  <span>+91 123 456 7890</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                   <HiOutlineMail className="w-3.5 h-3.5 shrink-0" />
-                  <span>hello@furniture.com</span>
+                  <span>vfurnitureshelp@gmail.com</span>
                 </div>
               </div>
 
@@ -95,19 +95,40 @@ const Footer = () => {
         <div className="border-t border-gray-200 dark:border-gray-800 py-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <p className="text-xs text-gray-600 dark:text-gray-400 text-center lg:text-left">
-              © {currentYear} Premium Furniture. All rights reserved.
+              © {currentYear} V Furnitures. All rights reserved.
             </p>
 
             <div className="flex items-center justify-center gap-4">
-              {["Privacy", "Terms", "Accessibility"].map((item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-                >
-                  {item}
-                </a>
-              ))}
+              <a
+                href="/privacy-policy"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+              >
+                Privacy Policy
+              </a>
+              <a
+                href="/terms-of-service"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+              >
+                Terms of Service
+              </a>
+              <a
+                href="/refund-policy"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+              >
+                Refund Policy
+              </a>
+              <a
+                href="/shipping-policy"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+              >
+                Shipping Policy
+              </a>
+              <a
+                href="/about"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+              >
+                About Us
+              </a>
             </div>
           </div>
         </div>

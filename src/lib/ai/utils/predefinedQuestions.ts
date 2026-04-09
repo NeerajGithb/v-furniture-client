@@ -450,11 +450,15 @@ function generateRoomPatterns(): QuestionPattern[] {
       patterns: [
         `${room} furniture`,
         `furniture for ${room}`,
+        `furniture for my ${room}`,
+        `furniture for the ${room}`,
         `${room} items`,
         `show me ${room} furniture`,
         `find ${room} furniture`,
         `${room} collection`,
         `best ${room} furniture`,
+        `my ${room} furniture`,
+        `the ${room} furniture`,
       ],
       understanding: {
         coarse_intent: "BROWSING",
