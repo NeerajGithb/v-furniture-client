@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # eslint reports
 eslint-report.txt
@@ -43,8 +44,14 @@ eslint-report.txt
 *.tsbuildinfo
 next-env.d.ts
 
-# Development scripts
+# Development & conversion scripts
 clear-redis-cache.js
+generate-pdf.js
+md_to_word.js
+
+# Personal interview & study notes
+INTERVIEW_QA.txt
+*.interview.*
 
 # Presentation files
 generate_ppt.py
